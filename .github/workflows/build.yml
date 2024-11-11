@@ -1,46 +1,41 @@
-name: Build C++ Program
+name: C Language Build
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main  # 或其他你使用的分支
   pull_request:
-    branches: [main]
+    branches:
+      - main  # 或其他你使用的分支
+      
+    
+    
+      
+    
 
+      
+    
+    
+      
+    
 jobs:
   build:
-      
-    
-    
-      
-    
-    runs-on: windows-latest
-      
-    
-    
-      
-    
+    runs-on: ubuntu-latest  # 使用 Ubuntu Linux 环境进行构建
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2  # 检出代码库
 
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          install: mingw-w64-x86_64-gcc
+    - name: Set up GCC
+      run: sudo apt-get install build-essential  # 安装 GCC 和编译工具
 
-      - name: Compile C++ Code
-        run: |
-          g++ -m64 -o xb.exe xb.cpp -static
+    - name: Compile C code
       
     
     
       
     
+      run: gcc -o xb xb.c  # 编译 C 程序
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: xb
-          path: xb.exe
+    - name: Run tests
+      run: ./xb  # 运行生成的可执行文件
