@@ -1,95 +1,174 @@
 using System;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-using System.Threading;
+using System.Diagnostics;
 using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Windows.Forms;
+using Gma.System.MouseKeyHook;
+using log4net;
 
-namespace AutoClicker
+namespace MouseClickerApp
 {
-    public partial class AutoClickerForm : Form
+    public class MouseClicker : Form
     {
-        private int clickCount = 10;  // 默认点击次数
-        private int clickInterval = 20; // 点击间隔
-        private Timer clickTimer;
-        private bool isClicking = false;
+        public static readonly ILog Log = LogManager.GetLogger("MC.INFO");
 
-        public AutoClickerForm()
+        private IKeyboardMouseEvents KMEvents;
+        private bool clicking = false;
+        private bool shiftDown = false;
+        private int clickCounts = 10; // Default click counts
+        private Timer autoDetectTimer;
+        private bool autoDetectEnabled = false;
+
+        [DllImport("user32.dll", EntryPoint = "FindWindow", SetLastError = true)]
+        public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        public MouseClicker()
         {
-            InitializeComponent();
-            this.Text = "Auto Clicker";
-            this.WindowState = FormWindowState.Minimized;
-            this.ShowInTaskbar = false;
+            this.Text = "Mouse Clicker";
+            this.FormClosing += OnFormClosing;
+            InitializeEventHandlers();
+        }
 
-            clickTimer = new Timer { Interval = clickInterval };
-            clickTimer.Tick += (s, e) => PerformClick();
+        private void InitializeEventHandlers()
+        {
+            KMEvents = Hook.GlobalEvents();
+            KMEvents.KeyDown += OnKeyDown;
+            KMEvents.KeyUp += OnKeyUp;
+            KMEvents.MouseDown += OnMouseClick;
+            KMEvents.MouseWheel += OnMouseWheel;
 
-            this.KeyPreview = true;
-            this.KeyDown += OnKeyDown;
+            SetupAutoDetect();
+        }
+
+        private void OnFormClosing(object sender, FormClosingEventArgs e)
+        {
+            UnsubscribeEvents();
+        }
+
+        private void UnsubscribeEvents()
+        {
+            KMEvents.KeyDown -= OnKeyDown;
+            KMEvents.KeyUp -= OnKeyUp;
+            KMEvents.MouseDown -= OnMouseClick;
+            KMEvents.MouseWheel -= OnMouseWheel;
+            KMEvents.Dispose();
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.F7 && e.Modifiers == Keys.None)
+            if (e.KeyCode == Keys.F7)
             {
-                ShowTooltip();
+                ShowDateTimeTooltip();
             }
-            else if (e.KeyCode == Keys.F7 && e.Modifiers == Keys.Alt)
+            else if (e.KeyCode == Keys.F7 && e.Alt)
             {
                 Application.Exit();
             }
-            else if (e.KeyCode == Keys.LButton && Control.ModifierKeys == Keys.Shift)
+            else if (e.KeyCode == Keys.ShiftKey)
             {
-                if (!isClicking)
+                shiftDown = true;
+            }
+        }
+
+        private void OnKeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.ShiftKey)
+            {
+                shiftDown = false;
+            }
+        }
+
+        private void OnMouseClick(object sender, MouseEventArgs e)
+        {
+            if (shiftDown && e.Button == MouseButtons.Left && !clicking)
+            {
+                PerformFixedPositionClick();
+            }
+        }
+
+        private void OnMouseWheel(object sender, MouseEventArgs e)
+        {
+            if (shiftDown)
+            {
+                clickCounts = Math.Max(1, clickCounts + (e.Delta > 0 ? 1 : -1));
+                Log.Info($"Click count updated: {clickCounts}");
+            }
+        }
+
+        private void PerformFixedPositionClick()
+        {
+            clicking = true;
+            int initialX = Cursor.Position.X;
+            int initialY = Cursor.Position.Y;
+
+            Task.Run(() =>
+            {
+                for (int i = 0; i < clickCounts; i++)
                 {
-                    StartClicking();
+                    MouseSimulator.Click(MouseButtons.Left, initialX, initialY);
+                    Thread.Sleep(100); // Adjust interval as needed
+                }
+                clicking = false;
+            });
+        }
+
+        private void ShowDateTimeTooltip()
+        {
+            var now = DateTime.Now;
+            var tooltipText = $"现在是 {now:yyyy年MM月dd日，dddd，HH:mm}";
+            ToolTip tt = new ToolTip();
+            tt.Show(tooltipText, this, 2000);
+        }
+
+        private void SetupAutoDetect()
+        {
+            autoDetectTimer = new Timer((state) =>
+            {
+                if (GameProcessExists() && !clicking)
+                {
+                    Log.Info("Game process detected, starting clicker");
+                    PerformFixedPositionClick();
+                }
+                else if (!GameProcessExists() && clicking)
+                {
+                    clicking = false;
+                }
+            }, null, 1000, 1000); // Adjust interval as needed
+        }
+
+        private bool GameProcessExists()
+        {
+            foreach (Process process in Process.GetProcesses())
+            {
+                if (process.ProcessName.Contains("game_process_name")) // Replace with actual game process name
+                {
+                    return true;
                 }
             }
+            return false;
         }
 
-        private void StartClicking()
+        [STAThread]
+        public static void Main()
         {
-            isClicking = true;
-            clickTimer.Start();
-        }
-
-        private void PerformClick()
-        {
-            if (clickCount <= 0)
-            {
-      
-    
-    
-      
-    
-                clickTimer.Stop();
-                isClicking = false;
-                return;
-            }
-
-            MouseSimulator.Click(MouseButtons.Left);
-            clickCount--;
-        }
-
-        private void ShowTooltip()
-        {
-            string message = $"红警xb提示：现在是{DateTime.Now:yyyy年MM月dd日，dddd，HH:mm}";
-            ToolTip tooltip = new ToolTip();
-            tooltip.Show(message, this, Cursor.Position, 3000);
+            Application.Run(new MouseClicker());
         }
     }
 
     public static class MouseSimulator
     {
         [DllImport("user32.dll")]
-        static extern void mouse_event(int flags, int dX, int dY, int buttons, int extraInfo);
+        private static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, UIntPtr dwExtraInfo);
 
-        const int MOUSEEVENTF_LEFTDOWN = 0x2;
-        const int MOUSEEVENTF_LEFTUP = 0x4;
+        private const int MOUSEEVENTF_LEFTDOWN = 0x0002;
+        private const int MOUSEEVENTF_LEFTUP = 0x0004;
 
-        public static void Click(MouseButtons button)
+        public static void Click(MouseButtons button, int x, int y)
         {
-            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+            Cursor.Position = new Point(x, y);
+            mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, UIntPtr.Zero);
+            mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, UIntPtr.Zero);
         }
     }
 }
