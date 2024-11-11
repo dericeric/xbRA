@@ -1,125 +1,113 @@
-using System;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-using System.Threading;
-using System.Drawing;
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{6711F74F-8A36-46B5-B488-ECC802C61ABC}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>MouseClick</RootNamespace>
+    <AssemblyName>MouseClick</AssemblyName>
 
-namespace MouseClick
-{
-    static class Program
-    {
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            System.Security.Principal.WindowsIdentity identity = System.Security.Principal.WindowsIdentity.GetCurrent();
-            System.Security.Principal.WindowsPrincipal principal = new System.Security.Principal.WindowsPrincipal(identity);
-
-            if (principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
-            {
-                Application.Run(new AutoClickerForm());
-            }
-            else
-            {
-                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
-                startInfo.UseShellExecute = true;
-                startInfo.WorkingDirectory = Environment.CurrentDirectory;
-                startInfo.FileName = Application.ExecutablePath;
-                startInfo.Verb = "runas";
-
-                try
-                {
-                    System.Diagnostics.Process.Start(startInfo);
-                }
-                catch
-                {
-                    return;
-                }
-                Application.Exit();
-            }
-        }
-    }
-
-    public class AutoClickerForm : Form
-    {
-        private int clickCount = 10;
-        private int clickInterval = 20;
-        private Timer clickTimer;
-        private bool isClicking = false;
-
-        public AutoClickerForm()
-        {
-            this.Text = "Auto Clicker";
-            this.WindowState = FormWindowState.Minimized;
-            this.ShowInTaskbar = false;
-
-            clickTimer = new Timer { Interval = clickInterval };
-            clickTimer.Tick += (s, e) => PerformClick();
-
-            this.KeyPreview = true;
-            this.KeyDown += OnKeyDown;
-        }
-
-        private void OnKeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.F7 && e.Modifiers == Keys.None)
-            {
-                ShowTooltip();
-            }
-            else if (e.KeyCode == Keys.F7 && e.Modifiers == Keys.Alt)
-            {
-                Application.Exit();
-            }
-            else if (e.KeyCode == Keys.LButton && Control.ModifierKeys == Keys.Shift)
-            {
-                if (!isClicking)
-                {
-                    StartClicking();
-                }
-            }
-        }
-
-        private void StartClicking()
-        {
-            isClicking = true;
-            clickTimer.Start();
-        }
-
-        private void PerformClick()
-        {
-            if (clickCount <= 0)
-            {
-                clickTimer.Stop();
-                isClicking = false;
-                return;
-            }
-
-            MouseSimulator.Click(MouseButtons.Left);
-            clickCount--;
-        }
-
-        private void ShowTooltip()
-        {
-            string message = $"红警xb提示：现在是{DateTime.Now:yyyy年MM月dd日，dddd，HH:mm}";
-            ToolTip tooltip = new ToolTip();
-            tooltip.Show(message, this, Cursor.Position, 3000);
-        }
-    }
-
-    public static class MouseSimulator
-    {
-        [DllImport("user32.dll")]
-        static extern void mouse_event(int flags, int dX, int dY, int buttons, int extraInfo);
-
-        const int MOUSEEVENTF_LEFTDOWN = 0x2;
-        const int MOUSEEVENTF_LEFTUP = 0x4;
-
-        public static void Click(MouseButtons button)
-        {
-            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-        }
-    }
-}
+    
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Gma.System.MouseKeyHook, Version=5.6.130.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MouseKeyHook.5.6.0\lib\net40\Gma.System.MouseKeyHook.dll</HintPath>
+    </Reference>
+    <Reference Include="log4net, Version=2.0.12.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
+      <HintPath>..\packages\log4net.2.0.12\lib\net45\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="MaterialSkin, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaterialSkin.2.2.3.1\lib\net461\MaterialSkin.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Config.cs" />
+    <Compile Include="Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form1.Designer.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Form1_init.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="NotifyingEntity.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utils.cs" />
+    <EmbeddedResource Include="Form1.resx">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="config.ini">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="game-processes.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
