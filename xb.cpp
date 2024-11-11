@@ -1,16 +1,16 @@
 #include <windows.h>
 #include <iostream>
 
-int clickCount = 10;          // 需要执行的点击次数
+int clickCount = 10;          // 连点次数
 int clickInterval = 20;       // 每次点击之间的间隔（毫秒）
-int clicksRemaining = 0;      // 剩余点击次数 
-int clickX = 0;               // 点击的X坐标                              
-int clickY = 0;               // 点击的Y坐标 
-bool stopClicking = false;    // 控制是否停止点击的标志
-bool clickingActive = false;  // 检查定时器是否已在运行
+int clicksRemaining = 0;      // 剩余点击次数
+int clickX = 0;               // 点击X坐标
+int clickY = 0;               // 点击Y坐标
+bool stopClicking = false;    // 控制停止点击的标志
+bool clickingActive = false;  // 定时器是否已运行
 
 void SetTooltip(const std::string& message) {
-    std::cout << "Tooltip: " << message << std::endl;                              
+    std::cout << "Tooltip: " << message << std::endl;
 }
 
 void DoFixedPositionClick(HWND hwnd) {
@@ -20,53 +20,45 @@ void DoFixedPositionClick(HWND hwnd) {
         return;
     }
 
-    // 将屏幕坐标转换为绝对坐标
-    int absX = clickX * (65535 / GetSystemMetrics(SM_CXSCREEN));
-    int absY = clickY * (65535 / GetSystemMetrics(SM_CYSCREEN));
+    // 设置鼠标位置到目标坐标
+    SetCursorPos(clickX, clickY);
 
-    // 模拟鼠标点击
-    INPUT inputs[2] = {};
-    inputs[0].type = INPUT_MOUSE;
-    inputs[0].mi.dx = absX;
-    inputs[0].mi.dy = absY;
-    inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE;
+    // 模拟鼠标按下和释放
+    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
 
-    inputs[1].type = INPUT_MOUSE;
-    inputs[1].mi.dx = absX;
-    inputs[1].mi.dy = absY;
-    inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP | MOUSEEVENTF_ABSOLUTE;
-
-    SendInput(2, inputs, sizeof(INPUT));  // 使用 SendInput 发送输入
     clicksRemaining--;
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
-    case WM_LBUTTONDOWN: // Shift + 左键
-        if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-            if (!clickingActive) {
-                POINT pt;
-                GetCursorPos(&pt);
-                clickX = pt.x;
-                clickY = pt.y;
-                clicksRemaining = clickCount;
-                stopClicking = false;
-                clickingActive = true;
-                SetTimer(hwnd, 1, clickInterval, NULL);
-            }
-        }
-        break;
-
     case WM_KEYDOWN:
         if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-            if (wParam == VK_UP) { // Shift + WheelUp
+            switch (wParam) {
+            case VK_LBUTTON: // Shift + 左键
+                if (!clickingActive) {
+                    POINT pt;
+                    GetCursorPos(&pt);
+                    clickX = pt.x;
+                    clickY = pt.y;
+                    clicksRemaining = clickCount;
+                    stopClicking = false;
+                    clickingActive = true;
+                    SetTimer(hwnd, 1, clickInterval, NULL);
+                }
+                break;
+
+            case VK_UP: // Shift + 上键
                 if (clickCount < 30) clickCount++;
                 else clickCount = 1;
                 SetTooltip("Click count: " + std::to_string(clickCount));
-            } else if (wParam == VK_DOWN) { // Shift + WheelDown
+                break;
+
+            case VK_DOWN: // Shift + 下键
                 if (clickCount > 1) clickCount--;
                 else clickCount = 30;
                 SetTooltip("Click count: " + std::to_string(clickCount));
+                break;
             }
         }
         break;
@@ -89,7 +81,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 int main() {
     const char CLASS_NAME[] = "ClickerWindow";
-    
+
     WNDCLASS wc = { };
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = GetModuleHandle(NULL);
@@ -114,5 +106,5 @@ int main() {
         DispatchMessage(&msg);
     }
 
-    return 0; 
+    return 0;
 }
