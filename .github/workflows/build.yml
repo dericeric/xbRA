@@ -1,6 +1,16 @@
 name: Build and Package MouseClicker
 
+      
+    
+    
+      
+    
 on:
+      
+    
+    
+      
+    
   push:
     branches:
       - main
@@ -8,13 +18,30 @@ on:
     branches:
       - main
 
+      
+    
+    
+      
+    
 jobs:
   build:
     runs-on: windows-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v3
+
+  - name: Set up .NET
+    uses: actions/setup-dotnet@v3
+    with:
+      dotnet-version: '6.0.x'
+
+  - name: Build project
+    run: dotnet build MouseClick.csproj --configuration Release
+
+  - name: Publish executable
+    run: dotnet publish MouseClick.csproj --configuration Release --output ./publish
+
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
