@@ -10,22 +10,22 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # 使用 Windows runner，因为你的项目需要访问 Windows API
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up .NET
-      uses: actions/setup-dotnet@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '7.0'  # 或根据需要修改为所需的 .NET SDK 版本
+        dotnet-version: '7.0.x'  # 或者 '6.0.x'，确保使用正确版本
 
     - name: Restore dependencies
-      run: dotnet restore  # 恢复项目的所有依赖项
+      run: dotnet restore
 
-    - name: Build the project
-      run: dotnet build  # 构建项目
+    - name: Build project
+      run: dotnet build --configuration Release
 
-    - name: Run the project
-      run: dotnet run  # 运行项目
+    - name: Run tests
+      run: dotnet test --configuration Release
