@@ -1,4 +1,4 @@
-name: Build C Project
+name: Build and Upload C AutoClicker
 
 on:
   push:
@@ -6,17 +6,7 @@ on:
       - main
   pull_request:
     branches:
-      
-    
-    
-      
-    
       - main
-      
-    
-    
-      
-    
 
 jobs:
   build:
@@ -30,4 +20,10 @@ jobs:
       run: choco install mingw
 
     - name: Build C program
-      run: gcc -o MouseClick MouseClick.c -lgdi32
+      run: gcc -o MouseClick.exe MouseClick.c -lgdi32
+
+    - name: Upload EXE as Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: MouseClick-exe
+        path: MouseClick.exe
