@@ -1,110 +1,140 @@
-#include <windows.h>
-#include <iostream>
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using System.Threading;
+using System.Drawing;
+      
+    
+    
+      
+    
 
-int clickCount = 10;          // 连点次数
-int clickInterval = 20;       // 每次点击之间的间隔（毫秒）
-int clicksRemaining = 0;      // 剩余点击次数
-int clickX = 0;               // 点击X坐标
-int clickY = 0;               // 点击Y坐标
-bool stopClicking = false;    // 控制停止点击的标志
-bool clickingActive = false;  // 定时器是否已运行
+      
+    
+    
+      
+    
+namespace MouseClick
+      
+    
+    
+      
+    
+{
+    static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
-void SetTooltip(const std::string& message) {
-    std::cout << "Tooltip: " << message << std::endl;
-}
+            System.Security.Principal.WindowsIdentity identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            System.Security.Principal.WindowsPrincipal principal = new System.Security.Principal.WindowsPrincipal(identity);
 
-void DoFixedPositionClick(HWND hwnd) {
-    if (clicksRemaining <= 0 || stopClicking) {
-        clickingActive = false; // 停止标志
-        KillTimer(hwnd, 1);     // 停止定时器
-        return;
-    }
+            if (principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+            {
+                Application.Run(new AutoClickerForm());
+            }
+            else
+            {
+                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+                startInfo.UseShellExecute = true;
+                startInfo.WorkingDirectory = Environment.CurrentDirectory;
+                startInfo.FileName = Application.ExecutablePath;
+                startInfo.Verb = "runas";
 
-    // 设置鼠标位置到目标坐标
-    SetCursorPos(clickX, clickY);
-
-    // 模拟鼠标按下和释放
-    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-
-    clicksRemaining--;
-}
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
-    case WM_KEYDOWN:
-        if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-            switch (wParam) {
-            case VK_LBUTTON: // Shift + 左键
-                if (!clickingActive) {
-                    POINT pt;
-                    GetCursorPos(&pt);
-                    clickX = pt.x;
-                    clickY = pt.y;
-                    clicksRemaining = clickCount;
-                    stopClicking = false;
-                    clickingActive = true;
-                    SetTimer(hwnd, 1, clickInterval, NULL);
+                try
+                {
+                    System.Diagnostics.Process.Start(startInfo);
                 }
-                break;
-
-            case VK_UP: // Shift + 上键
-                if (clickCount < 30) clickCount++;
-                else clickCount = 1;
-                SetTooltip("Click count: " + std::to_string(clickCount));
-                break;
-
-            case VK_DOWN: // Shift + 下键
-                if (clickCount > 1) clickCount--;
-                else clickCount = 30;
-                SetTooltip("Click count: " + std::to_string(clickCount));
-                break;
+                catch
+                {
+                    return;
+                }
+                Application.Exit();
             }
         }
-        break;
+    }
 
-    case WM_TIMER:
-        if (wParam == 1) {
-            DoFixedPositionClick(hwnd);
+    public class AutoClickerForm : Form
+    {
+        private int clickCount = 10;
+        private int clickInterval = 20;
+        private Timer clickTimer;
+        private bool isClicking = false;
+
+        public AutoClickerForm()
+        {
+            this.Text = "Auto Clicker";
+            this.WindowState = FormWindowState.Minimized;
+            this.ShowInTaskbar = false;
+
+            clickTimer = new Timer { Interval = clickInterval };
+            clickTimer.Tick += (s, e) => PerformClick();
+
+            this.KeyPreview = true;
+            this.KeyDown += OnKeyDown;
         }
-        break;
 
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F7 && e.Modifiers == Keys.None)
+            {
+                ShowTooltip();
+            }
+            else if (e.KeyCode == Keys.F7 && e.Modifiers == Keys.Alt)
+            {
+                Application.Exit();
+            }
+            else if (e.KeyCode == Keys.LButton && Control.ModifierKeys == Keys.Shift)
+            {
+                if (!isClicking)
+                {
+                    StartClicking();
+                }
+            }
+        }
 
-    default:
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        private void StartClicking()
+        {
+            isClicking = true;
+            clickTimer.Start();
+        }
+
+        private void PerformClick()
+        {
+            if (clickCount <= 0)
+            {
+                clickTimer.Stop();
+                isClicking = false;
+                return;
+            }
+
+            MouseSimulator.Click(MouseButtons.Left);
+            clickCount--;
+        }
+
+        private void ShowTooltip()
+        {
+            string message = $"红警xb提示：现在是{DateTime.Now:yyyy年MM月dd日，dddd，HH:mm}";
+            ToolTip tooltip = new ToolTip();
+            tooltip.Show(message, this, Cursor.Position, 3000);
+        }
     }
-    return 0;
-}
 
-int main() {
-    const char CLASS_NAME[] = "ClickerWindow";
+    public static class MouseSimulator
+    {
+        [DllImport("user32.dll")]
+        static extern void mouse_event(int flags, int dX, int dY, int buttons, int extraInfo);
 
-    WNDCLASS wc = { };
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = CLASS_NAME;
-    RegisterClass(&wc);
+        const int MOUSEEVENTF_LEFTDOWN = 0x2;
+        const int MOUSEEVENTF_LEFTUP = 0x4;
 
-    HWND hwnd = CreateWindowEx(
-        0, CLASS_NAME, "Auto Clicker", WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-        NULL, NULL, GetModuleHandle(NULL), NULL
-    );
-
-    if (hwnd == NULL) {
-        return 0;
+        public static void Click(MouseButtons button)
+        {
+            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+        }
     }
-
-    ShowWindow(hwnd, SW_HIDE);
-
-    MSG msg = { };
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-
-    return 0;
 }
