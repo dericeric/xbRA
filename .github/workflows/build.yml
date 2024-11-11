@@ -1,4 +1,4 @@
-name: C# Build and Run
+name: Build Windows Forms App
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # 使用 Windows 操作系统
+    runs-on: windows-latest  # 或者试试 windows-2022
 
     steps:
     - name: Checkout code
@@ -19,24 +19,20 @@ jobs:
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '7.0.x'  # 或者 '6.0.x'，确保使用支持 WindowsForms 的 SDK
+        dotnet-version: '7.0.x'  # 使用支持 WindowsForms 的版本
+
+    - name: Install .NET SDK (if needed)
+      run: |
+        choco install dotnet-sdk --version=7.0.410
 
     - name: Restore dependencies
-      
-    
-    
-      
-    
       run: dotnet restore
 
-    - name: Build project
-      run: dotnet build --configuration Release
+    - name: Clean and build project
+      run: |
+        dotnet clean
+        dotnet restore
+        dotnet build --configuration Release
 
-      
-    
-    
-      
-    
     - name: Run tests
       run: dotnet test --configuration Release
-
