@@ -5,17 +5,11 @@ int clickCount = 10;          // 需要执行的点击次数
 int clickInterval = 20;       // 每次点击之间的间隔（毫秒）
 int clicksRemaining = 0;      // 剩余点击次数 
 int clickX = 0;               // 点击的X坐标                              
-      
-    
-    
-      
-    
 int clickY = 0;               // 点击的Y坐标 
 bool stopClicking = false;    // 控制是否停止点击的标志
 bool clickingActive = false;  // 检查定时器是否已在运行
 
 void SetTooltip(const std::string& message) {
-    // 显示工具提示（替代 AutoHotkey 的 ToolTip 功能） 
     std::cout << "Tooltip: " << message << std::endl;                              
 }
 
@@ -26,19 +20,23 @@ void DoFixedPositionClick(HWND hwnd) {
         return;
     }
 
+    // 将屏幕坐标转换为绝对坐标
+    int absX = clickX * (65535 / GetSystemMetrics(SM_CXSCREEN));
+    int absY = clickY * (65535 / GetSystemMetrics(SM_CYSCREEN));
+
     // 模拟鼠标点击
     INPUT inputs[2] = {};
     inputs[0].type = INPUT_MOUSE;
-    inputs[0].mi.dx = clickX * (65535 / GetSystemMetrics(SM_CXSCREEN)); // 转换为绝对坐标
-    inputs[0].mi.dy = clickY * (65535 / GetSystemMetrics(SM_CYSCREEN));
+    inputs[0].mi.dx = absX;
+    inputs[0].mi.dy = absY;
     inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE;
 
     inputs[1].type = INPUT_MOUSE;
-    inputs[1].mi.dx = inputs[0].mi.dx;
-    inputs[1].mi.dy = inputs[0].mi.dy;
+    inputs[1].mi.dx = absX;
+    inputs[1].mi.dy = absY;
     inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP | MOUSEEVENTF_ABSOLUTE;
 
-    SendInput(2, inputs, sizeof(INPUT));
+    SendInput(2, inputs, sizeof(INPUT));  // 使用 SendInput 发送输入
     clicksRemaining--;
 }
 
@@ -54,7 +52,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 clicksRemaining = clickCount;
                 stopClicking = false;
                 clickingActive = true;
-                SetTimer(hwnd, 1, clickInterval, NULL); // 设置定时器以触发 DoFixedPositionClick
+                SetTimer(hwnd, 1, clickInterval, NULL);
             }
         }
         break;
