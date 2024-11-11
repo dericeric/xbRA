@@ -6,7 +6,17 @@ on:
       - main
   pull_request:
     branches:
+      
+    
+    
+      
+    
       - main
+      
+    
+    
+      
+    
 
 jobs:
   build:
@@ -21,6 +31,3 @@ jobs:
 
     - name: Build C program
       run: gcc -o MouseClick MouseClick.c -lgdi32
-
-    - name: Run the program
-      run: ./MouseClick
