@@ -2,34 +2,45 @@ name: Build C++ Program
 
 on:
   push:
-      
-    
-    
-      
-    
-    branches: [main]  # 每次推送到 main 分支时触发
+    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
   build:
-    runs-on: windows-latest  # 使用Windows最新环境
+      
+    
+    
+      
+    
+    runs-on: windows-latest
+      
+    
+    
+      
+    
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2  # 检出代码
+        uses: actions/checkout@v2
 
-      - name: Set up MinGW
-        uses: egor-tensin/setup-mingw@v1  # 使用第三方 Action 安装 MinGW
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
         with:
-          architecture: x86_64  # 设置为64位架构
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
 
       - name: Compile C++ Code
         run: |
-          g++ -m64 -o myprogram.exe myprogram.cpp -static  # 编译代码，生成 EXE 文件
-          
+          g++ -m64 -o xb.exe xb.cpp -static
+      
+    
+    
+      
+    
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: myprogram
-          path: myprogram.exe  # 将生成的EXE文件作为构建产物上传
+          name: xb
+          path: xb.exe
