@@ -1,4 +1,4 @@
-name: Build and Upload C AutoClicker
+name: Build and Package MouseClicker
 
 on:
   push:
@@ -10,20 +10,25 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Install MinGW
-      run: choco install mingw
-
-    - name: Build C program
-      run: gcc -o MouseClick.exe MouseClick.c -lgdi32
-
-    - name: Upload EXE as Artifact
-      uses: actions/upload-artifact@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
       with:
-        name: MouseClick-exe
-        path: MouseClick.exe
+        dotnet-version: '6.0.x'
+
+    - name: Build the project
+      run: dotnet build -c Release
+
+    - name: Publish executable
+      run: dotnet publish -c Release -r win-x64 --self-contained
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: MouseClickerExecutable
+        path: path/to/your/output/folder/*.exe
