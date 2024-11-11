@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022  # 使用 Windows Server 2022 映像
+    runs-on: windows-2022  # 使用 Windows Server 2022 镜像
 
     steps:
     - name: Checkout code
@@ -19,14 +19,18 @@ jobs:
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '7.0.x'  # 使用支持 Windows Forms 的版本
+        dotnet-version: '7.0.x'  # 确保使用支持 WindowsForms 的版本
 
-    - name: Install .NET SDK (if needed)
+    - name: Install .NET SDK (ensure WindowsForms SDK is present)
       run: |
-        choco install dotnet-sdk --version=7.0.410
+        choco install dotnet-sdk --version=7.0.410  # 显式安装支持 WindowsForms 的 SDK
 
     - name: Restore dependencies
       run: dotnet restore
+
+    - name: Install Windows Forms SDK
+      run: |
+        dotnet workload install windowsdesktop  # 安装 Windows Forms SDK
 
     - name: Clean and build project
       run: |
