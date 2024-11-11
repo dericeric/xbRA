@@ -27,9 +27,9 @@ jobs:
     - name: Publish executable
       run: dotnet publish -c Release -r win-x64 --self-contained
 
-- name: Upload artifact
-  uses: actions/upload-artifact@v3
-  with:
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
         name: MouseClickerExecutable
         path: path/to/your/output/folder/*.exe
         
