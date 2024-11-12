@@ -3,12 +3,7 @@ name: .NET Build and Publish
 on:
   push:
     branches:
-      
-    
-    
-      
-    
-      - main  # 触发构建的分支，可根据需要更改
+      - main
 
   pull_request:
     branches:
@@ -25,21 +20,19 @@ jobs:
     - name: 设置 .NET SDK
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '6.0.x'  # 设置使用的 .NET 版本
+        dotnet-version: '6.0.x'
+
+    - name: 复制 nuget.config
+      run: cp ./nuget.config ${{ github.workspace }}
 
     - name: 还原依赖项
-      run: dotnet restore ./xbRA.csproj  # 指定 .csproj 文件路径
+      run: dotnet restore ./xbRA.csproj --configfile ./nuget.config
 
     - name: 构建项目
       run: dotnet build ./xbRA.csproj --no-restore --configuration Release
 
     - name: 发布项目
       run: dotnet publish ./xbRA.csproj --no-build --configuration Release --output ./output
-      
-    
-    
-      
-    
 
     - name: 上传发布的文件
       uses: actions/upload-artifact@v3
