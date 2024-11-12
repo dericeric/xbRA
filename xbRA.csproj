@@ -1,41 +1,15 @@
-name: .NET Build and Publish
+<Project Sdk="Microsoft.NET.Sdk">
 
-on:
-  push:
-    branches:
-      - main
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
 
-  pull_request:
-    branches:
-      - main
+  <ItemGroup>
+    <PackageReference Include="Gma.System.MouseKeyHook" Version="7.14.0" />
+    <PackageReference Include="MaterialSkin.2" Version="2.3.1" />
+  </ItemGroup>
 
-jobs:
-  build:
-    runs-on: windows-latest
-
-    steps:
-    - name: 检查出代码
-      uses: actions/checkout@v3
-
-    - name: 设置 .NET SDK
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '6.0.x'
-
-    - name: 复制 nuget.config
-      run: cp ./nuget.config ${{ github.workspace }}
-
-    - name: 还原依赖项
-      run: dotnet restore ./xbRA.csproj --configfile ./nuget.config
-
-    - name: 构建项目
-      run: dotnet build ./xbRA.csproj --no-restore --configuration Release
-
-    - name: 发布项目
-      run: dotnet publish ./xbRA.csproj --no-build --configuration Release --output ./output
-
-    - name: 上传发布的文件
-      uses: actions/upload-artifact@v3
-      with:
-        name: PublishedFiles
-        path: ./output
+</Project>
