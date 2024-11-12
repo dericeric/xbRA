@@ -27,6 +27,20 @@ jobs:
     - name: Clear NuGet cache
       run: dotnet nuget locals all --clear
 
+    - name: Restore dependencies
+      
+    
+    
+      
+    
+      run: dotnet restore D:\a\xbRA\xbRA/xbRA.csproj --source https://api.nuget.org/v3/index.json
+      
+    
+    
+      
+    
+
+
     - name: Verify nuget.config exists
       run: ls ${{ github.workspace }}/nuget.config
 
