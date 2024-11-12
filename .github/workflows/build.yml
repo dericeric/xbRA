@@ -22,9 +22,6 @@ jobs:
       with:
         dotnet-version: '6.0.x'
 
-    - name: 复制 nuget.config
-      run: cp ./nuget.config ${{ github.workspace }}
-
     - name: 还原依赖项
       run: dotnet restore ./xbRA.csproj --configfile ./nuget.config
 
