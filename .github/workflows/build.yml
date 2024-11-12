@@ -3,6 +3,11 @@ name: .NET Build and Publish
 on:
   push:
     branches:
+      
+    
+    
+      
+    
       - main  # 触发构建的分支，可根据需要更改
 
   pull_request:
@@ -23,13 +28,18 @@ jobs:
         dotnet-version: '6.0.x'  # 设置使用的 .NET 版本
 
     - name: 还原依赖项
-      run: dotnet restore
+      run: dotnet restore ./xbRA.csproj  # 指定 .csproj 文件路径
 
     - name: 构建项目
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build ./xbRA.csproj --no-restore --configuration Release
 
     - name: 发布项目
-      run: dotnet publish --no-build --configuration Release --output ./output
+      run: dotnet publish ./xbRA.csproj --no-build --configuration Release --output ./output
+      
+    
+    
+      
+    
 
     - name: 上传发布的文件
       uses: actions/upload-artifact@v3
