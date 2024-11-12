@@ -29,8 +29,11 @@ jobs:
           exit 1
         }
 
+    - name: Clear NuGet cache
+      run: dotnet nuget locals all --clear
+
     - name: Restore dependencies
-      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --configfile ${{ github.workspace }}/nuget.config
+      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --source https://api.nuget.org/v3/index.json
 
     - name: 构建项目
       run: dotnet build ${{ github.workspace }}/xbRA.csproj --configuration Release --no-restore
