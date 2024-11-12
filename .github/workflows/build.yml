@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
@@ -23,29 +22,23 @@ jobs:
         dotnet-version: '6.0.x'
 
     - name: Verify nuget.config exists
-      run: ls ${{ github.workspace }}/nuget.config
-
-    - name: Restore dependencies   
-      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --configfile ${{ github.workspace }}/nuget.config
+      run: |
+        if [ ! -f "${{ github.workspace }}/nuget.config" ]; then
+          echo "nuget.config does not exist in the workspace."
+          exit 1
+        fi
 
     - name: Restore dependencies
-      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --source https://api.nuget.org/v3/index.json
-
-
-    - name: 还原依赖项
-      run: dotnet restore ./xbRA.csproj --configfile ./nuget.config
+      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --configfile ${{ github.workspace }}/nuget.config
 
     - name: 构建项目
-      run: dotnet build ./xbRA.csproj --no-restore --configuration Release
+      run: dotnet build ${{ github.workspace }}/xbRA.csproj --configuration Release --no-restore
 
     - name: 发布项目
-      run: dotnet publish ./xbRA.csproj --no-build --configuration Release --output ./output
+      run: dotnet publish ${{ github.workspace }}/xbRA.csproj --configuration Release --output ${{ github.workspace }}/output --no-build
 
     - name: 上传发布的文件
       uses: actions/upload-artifact@v3
       with:
         name: PublishedFiles
-        path: ./output
-        
-    - name: Restore dependencies
-      run: dotnet restore ./xbRA.csproj --configfile ${{ github.workspace }}/nuget.config
+        path: ${{ github.workspace }}/output
