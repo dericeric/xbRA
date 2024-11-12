@@ -36,3 +36,6 @@ jobs:
       with:
         name: PublishedFiles
         path: ./output
+        
+    - name: Restore dependencies
+      run: dotnet restore ./xbRA.csproj --configfile ${{ github.workspace }}/nuget.config
