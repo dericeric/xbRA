@@ -22,11 +22,12 @@ jobs:
         dotnet-version: '6.0.x'
 
     - name: Verify nuget.config exists
+      shell: pwsh
       run: |
-        if [ ! -f "${{ github.workspace }}/nuget.config" ]; then
-          echo "nuget.config does not exist in the workspace."
+        if (!(Test-Path "${{ github.workspace }}/nuget.config")) {
+          Write-Host "nuget.config does not exist in the workspace."
           exit 1
-        fi
+        }
 
     - name: Restore dependencies
       run: dotnet restore ${{ github.workspace }}/xbRA.csproj --configfile ${{ github.workspace }}/nuget.config
