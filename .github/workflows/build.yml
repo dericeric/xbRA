@@ -21,6 +21,9 @@ jobs:
       with:
         dotnet-version: '6.0.x'
 
+    - name: Disable Cache
+      run: dotnet nuget locals all --clear
+
     - name: Clear NuGet cache
       run: dotnet nuget locals all --clear
 
