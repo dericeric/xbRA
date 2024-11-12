@@ -13,36 +13,34 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: 检查出代码
+    - name: Check out code
       uses: actions/checkout@v3
 
-    - name: 设置 .NET SDK
+    - name: Set up .NET SDK
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '6.0.x'
 
-    - name: Verify nuget.config exists
-      shell: pwsh
-      run: |
-        if (!(Test-Path "${{ github.workspace }}/nuget.config")) {
-          Write-Host "nuget.config does not exist in the workspace."
-          exit 1
-        }
-
     - name: Clear NuGet cache
       run: dotnet nuget locals all --clear
 
-    - name: Restore dependencies
-      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --source https://api.nuget.org/v3/index.json
+    - name: Verify nuget.config exists
+      run: ls ${{ github.workspace }}/nuget.config
 
-    - name: 构建项目
-      run: dotnet build ${{ github.workspace }}/xbRA.csproj --configuration Release --no-restore
+    - name: Restore dependencies with nuget.config
+      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --configfile ${{ github.workspace }}/nuget.config --verbosity detailed
 
-    - name: 发布项目
-      run: dotnet publish ${{ github.workspace }}/xbRA.csproj --configuration Release --output ${{ github.workspace }}/output --no-build
+    - name: Restore dependencies from NuGet.org (fallback)
+      run: dotnet restore ${{ github.workspace }}/xbRA.csproj --source https://api.nuget.org/v3/index.json --verbosity detailed
 
-    - name: 上传发布的文件
+    - name: Build project
+      run: dotnet build ${{ github.workspace }}/xbRA.csproj --no-restore --configuration Release
+
+    - name: Publish project
+      run: dotnet publish ${{ github.workspace }}/xbRA.csproj --no-build --configuration Release --output ./output
+
+    - name: Upload published files
       uses: actions/upload-artifact@v3
       with:
         name: PublishedFiles
-        path: ${{ github.workspace }}/output
+        path: ./output
