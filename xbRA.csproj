@@ -3,11 +3,12 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
-    <UseWPF>false</UseWForms>true</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Gma.System.MouseKeyHook" Version="1.0.0" />
+    <PackageReference Include="Gma.System.MouseKeyHook" Version="7.14.0" />
     <PackageReference Include="MaterialSkin.2" Version="2.3.1" />
   </ItemGroup>
 
