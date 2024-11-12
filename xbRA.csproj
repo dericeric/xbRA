@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <!-- 指定项目类型为Windows可执行文件 -->
+    <OutputType>WinExe</OutputType>
+
+    <!-- 使用适合WinForms或WPF应用的框架 -->
+    <TargetFramework>net6.0-windows</TargetFramework>
+
+    <!-- 启用对Windows桌面应用的支持 -->
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- 可选：设置生成的输出文件名称 -->
+    <AssemblyName>MouseClick</AssemblyName>
+    <RootNamespace>MouseClick</RootNamespace>
+      
+    
+    
+      
+    
+  </PropertyGroup>
+
+  <!-- 包含其他项目依赖（如需） -->
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
+    <PackageReference Include="log4net" Version="2.0.14" />
+    <PackageReference Include="Gma.System.MouseKeyHook" Version="7.2.0.0" />
+    <PackageReference Include="MaterialSkin.2" Version="2.4.2" />
+  </ItemGroup>
+
+</Project>
