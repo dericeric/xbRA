@@ -1,32 +1,3 @@
-name: Build and Package MouseClicker
-
-      
-    
-    
-      
-    
-on:
-      
-    
-    
-      
-    
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-
-      
-    
-    
-      
-    
-jobs:
-  build:
-    runs-on: windows-latest
-
 steps:
   - name: Checkout code
     uses: actions/checkout@v3
@@ -37,26 +8,7 @@ steps:
       dotnet-version: '6.0.x'
 
   - name: Build project
-    run: dotnet build MouseClick.csproj --configuration Release
+    run: dotnet build xbRA.csproj --configuration Release
 
   - name: Publish executable
-    run: dotnet publish MouseClick.csproj --configuration Release --output ./publish
-
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: '6.0.x'
-
-    - name: Build the project
-      run: dotnet build -c Release
-
-    - name: Publish executable
-      run: dotnet publish -c Release -r win-x64 --self-contained
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: MouseClickerExecutable
-        path: path/to/your/output/folder/*.exe
-        
+    run: dotnet publish xbRA.csproj --configuration Release --output ./publish
