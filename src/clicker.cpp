@@ -2,6 +2,22 @@
 #include <iostream>
 #include <psapi.h>
 #include <tlhelp32.h>
+#include <thread>           // 添加线程支持
+#include <commctrl.h>       // 添加 Common Controls 支持
+#pragma comment(lib, "comctl32.lib")
+
+// 如果没有定义这些宏，手动定义它们
+#ifndef TTM_TRACKPOSITION
+#define TTM_TRACKPOSITION (WM_USER + 18)
+#endif
+
+#ifndef TTM_TRACKACTIVATE
+#define TTM_TRACKACTIVATE (WM_USER + 17)
+#endif
+
+#ifndef TTM_ADDTOOL
+#define TTM_ADDTOOL (WM_USER + 4)
+#endif
 
 class AutoClicker {
 private:
@@ -11,18 +27,50 @@ private:
     bool isClicking = false;    // 点击状态
     HWND gameWindow = NULL;     // 游戏窗口句柄
 
-    // 使用PostMessage模拟点击
+    // 使用简单的消息框显示点击次数
+    void ShowClickCountTooltip() {
+        char text[32];
+        sprintf_s(text, "Click Count: %d", clickCount);
+        
+        // 获取屏幕尺寸
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        
+        // 创建一个临时窗口来显示提示
+        HWND hwnd = CreateWindowEx(
+            WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+            L"STATIC",
+            NULL,
+            WS_POPUP | SS_CENTER,
+            screenWidth / 2 - 50,
+            screenHeight - 100,
+            100,
+            20,
+            NULL,
+            NULL,
+            GetModuleHandle(NULL),
+            NULL
+        );
+
+        if (hwnd) {
+            SetWindowTextA(hwnd, text);
+            ShowWindow(hwnd, SW_SHOW);
+            
+            // 1秒后销毁窗口
+            std::thread([hwnd]() {
+                Sleep(1000);
+                DestroyWindow(hwnd);
+            }).detach();
+        }
+    }
+
     void PostClick(int x, int y, int count = 1) {
         if (!gameWindow) return;
 
-        // 将屏幕坐标转换为客户区坐标
         POINT pt = { x, y };
         ScreenToClient(gameWindow, &pt);
-        
-        // 构造消息参数
         LPARAM lParam = MAKELPARAM(pt.x, pt.y);
         
-        // 执行指定次数的点击
         for (int i = 0; i < count && !stopClicking; i++) {
             PostMessage(gameWindow, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
             PostMessage(gameWindow, WM_LBUTTONUP, MK_LBUTTON, lParam);
@@ -60,11 +108,7 @@ public:
     bool stopClicking = false;
 
     AutoClicker() {
-        // 查找游戏窗口
-        gameWindow = FindWindowW(NULL, L"Command & Conquer Red Alert 2");
-        if (!gameWindow) {
-            gameWindow = FindWindowW(NULL, L"gamemd-spawn.exe");
-        }
+        gameWindow = FindWindowW(NULL, L"gamemd-spawn.exe");
     }
 
     bool IsGameActive() {
@@ -74,13 +118,11 @@ public:
     void StartClicking(int x, int y) {
         if (!IsGameActive()) return;
 
-        // 检查是否在屏幕右侧160像素范围内
         int screenWidth = GetSystemMetrics(SM_CXSCREEN);
         if (x > (screenWidth - 160)) {
             stopClicking = false;
             isClicking = true;
             
-            // 创建新线程执行点击，避免阻塞主线程
             std::thread([this, x, y]() {
                 PostClick(x, y, clickCount);
             }).detach();
@@ -98,43 +140,7 @@ public:
         } else {
             clickCount = (clickCount > 1) ? clickCount - 1 : 30;
         }
-        
-        // 显示提示
         ShowClickCountTooltip();
-    }
-
-private:
-    void ShowClickCountTooltip() {
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-        
-        // 创建提示文本
-        char tooltipText[32];
-        sprintf_s(tooltipText, "%d", clickCount);
-        
-        // 显示提示
-        HWND hwndTT = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, NULL,
-            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
-            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-            NULL, NULL, GetModuleHandle(NULL), NULL);
-
-        TOOLINFO ti = { 0 };
-        ti.cbSize = sizeof(TOOLINFO);
-        ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
-        ti.hwnd = NULL;
-        ti.hinst = GetModuleHandle(NULL);
-        ti.lpszText = tooltipText;
-        
-        SendMessage(hwndTT, TTM_ADDTOOL, 0, (LPARAM)&ti);
-        SendMessage(hwndTT, TTM_TRACKPOSITION, 0, 
-            MAKELONG(screenWidth / 2, screenHeight - 80));
-        SendMessage(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
-
-        // 1秒后销毁提示
-        std::thread([hwndTT]() {
-            Sleep(1000);
-            DestroyWindow(hwndTT);
-        }).detach();
     }
 };
 
@@ -169,4 +175,24 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         }
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+int main() {
+    // 安装键盘钩子
+    HHOOK keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
+    // 安装鼠标钩子
+    HHOOK mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+
+    // 消息循环
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    // 卸载钩子
+    UnhookWindowsHookEx(keyboardHook);
+    UnhookWindowsHookEx(mouseHook);
+    
+    return 0;
 }
