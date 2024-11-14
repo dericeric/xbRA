@@ -1,20 +1,19 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows.Forms;
 
 namespace RedAlertClicker
 {
     class Program
     {
-        static int clickCount = 1;
-        static int maxClickCount = 30;
-        static bool clickingActive = false;
-        static int clicksRemaining = 0;
-        static bool stopClicking = false;
-        static int clickInterval = 100; // 可根据需要调整
-        static System.Windows.Forms.Timer clickTimer;
+        internal static int clickCount = 1;
+        internal static int maxClickCount = 30;
+        internal static bool clickingActive = false;
+        internal static int clicksRemaining = 0;
+        internal static bool stopClicking = false;
+        internal static int clickInterval = 100; // 可根据需要调整
+        internal static System.Windows.Forms.Timer clickTimer;
 
         [DllImport("user32.dll")]
         private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
@@ -29,7 +28,7 @@ namespace RedAlertClicker
             Application.Run(new KeyboardHookListener());
         }
 
-        private static void DoFixedPositionClick(object sender, EventArgs e)
+        internal static void DoFixedPositionClick(object sender, EventArgs e)
         {
             if (clicksRemaining > 0 && !stopClicking)
             {
@@ -43,7 +42,7 @@ namespace RedAlertClicker
             }
         }
 
-        private static void PerformClick(int x, int y)
+        internal static void PerformClick(int x, int y)
         {
             Cursor.Position = new Point(x, y);
             mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, x, y, 0, UIntPtr.Zero);
@@ -71,31 +70,39 @@ namespace RedAlertClicker
 
     public class KeyboardHookListener : Form
     {
-        protected override void OnKeyDown(KeyEventArgs e)
+        protected override void OnMouseWheel(MouseEventArgs e)
         {
-            if (e.KeyCode == Keys.LButton && e.Shift && Cursor.Position.X > Screen.PrimaryScreen.Bounds.Width - 160)
+            if (Control.ModifierKeys == Keys.Shift)
             {
-                if (!Program.clickingActive)
+                if (e.Delta > 0) // Wheel Up
+                {
+                    Program.AdjustClickCount(true);
+                }
+                else if (e.Delta < 0) // Wheel Down
+                {
+                    Program.AdjustClickCount(false);
+                }
+            }
+            base.OnMouseWheel(e);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && Control.ModifierKeys == Keys.Shift)
+            {
+                if (Cursor.Position.X > Screen.PrimaryScreen.Bounds.Width - 160 && !Program.clickingActive)
                 {
                     Program.clicksRemaining = Program.clickCount;
                     Program.clickingActive = true;
                     Program.stopClicking = false;
                     Program.clickTimer.Start();
                 }
+                else
+                {
+                    Program.PerformClick(Cursor.Position.X, Cursor.Position.Y);
+                }
             }
-            else if (e.Delta > 0 && e.Shift) // Wheel Up
-            {
-                Program.AdjustClickCount(true);
-            }
-            else if (e.Delta < 0 && e.Shift) // Wheel Down
-            {
-                Program.AdjustClickCount(false);
-            }
-            else if (!Program.clickingActive)
-            {
-                // Simulate left click
-                Program.PerformClick(Cursor.Position.X, Cursor.Position.Y);
-            }
+            base.OnMouseDown(e);
         }
     }
 }
