@@ -1,8 +1,23 @@
 #include <windows.h>
 #include <iostream>
 #include <psapi.h>
+      
+    
+    
+      
+    
 #include <tlhelp32.h>
+      
+    
+    
+      
+    
 #include <thread>
+      
+    
+    
+      
+    
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
 
@@ -10,17 +25,7 @@
 #if defined _M_IX86
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #elif defined _M_IA64
-      
-    
-    
-      
-    
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='ia64' publicKeyToken='6595b64144ccf1df' language='*'\"")
-      
-    
-    
-      
-    
 #elif defined _M_X64
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #else
@@ -30,12 +35,25 @@
 class AutoClicker {
 private:
     int clickCount = 10;
-    int clickInterval = 10;
+    int clickInterval = 1;  // 减小间隔提高速度
     POINT clickPos;
     bool isClicking = false;
-    std::thread clickThread;
+    bool stopClicking = false;
     HWND currentTooltip = NULL;
     bool wasGameActive = false;
+
+    // 预定义鼠标输入结构
+    INPUT mouseDown = { 0 };
+    INPUT mouseUp = { 0 };
+
+    // 初始化鼠标输入结构
+    void InitMouseInput() {
+        mouseDown.type = INPUT_MOUSE;
+        mouseDown.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        
+        mouseUp.type = INPUT_MOUSE;
+        mouseUp.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    }
 
     bool IsTargetGameWindow(HWND hwnd) {
         if (!hwnd) return false;
@@ -54,11 +72,6 @@ private:
             wchar_t* fileName = wcsrchr(processName, L'\\');
             if (fileName) {
                 fileName++;
-      
-    
-    
-      
-    
                 _wcslwr_s(fileName, wcslen(fileName) + 1);
                 result = (wcscmp(fileName, L"gamemd-spawn.exe") == 0);
             }
@@ -78,10 +91,9 @@ private:
     void ShowActivationMessage() {
         ClearCurrentTooltip();
 
-        // 创建 ToolTip 窗口
-        HWND hwndTT = CreateWindowExW(
+        HWND hwndTT = CreateWindowEx(
             WS_EX_TOPMOST,
-            TOOLTIPS_CLASSW,  // 使用 Unicode 版本
+            TOOLTIPS_CLASS,
             NULL,
             WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
             CW_USEDEFAULT, CW_USEDEFAULT,
@@ -94,21 +106,16 @@ private:
         if (hwndTT) {
             currentTooltip = hwndTT;
 
-            // 设置 ToolTip 的字体为支持中文的字体
             HFONT hFont = CreateFontW(
-                16,                     // 字体高度
-                0,                      // 字体宽度
-                0, 0,                   // 角度
-                FW_NORMAL,              // 字体粗细
-                FALSE,                  // 斜体
-                FALSE,                  // 下划线
-                FALSE,                  // 删除线
-                DEFAULT_CHARSET,        // 字符集
+                16, 0, 0, 0,
+                FW_NORMAL,
+                FALSE, FALSE, FALSE,
+                DEFAULT_CHARSET,
                 OUT_DEFAULT_PRECIS,
                 CLIP_DEFAULT_PRECIS,
                 DEFAULT_QUALITY,
                 DEFAULT_PITCH | FF_DONTCARE,
-                L"微软雅黑"             // 字体名称
+                L"微软雅黑"
             );
             SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -117,12 +124,7 @@ private:
             ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
             ti.hwnd = NULL;
             ti.hinst = GetModuleHandle(NULL);
-      
-    
-    
-      
-    
-            ti.lpszText = L"[xb] Auto-Clicker Ready! Let's Fight! ";
+            ti.lpszText = L"[XB Alert] Auto-Clicker Online! Battle Mode Engaged!";
 
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -131,19 +133,21 @@ private:
             SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
             SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-            // 设置最大宽度以支持多行文本
-            SendMessageW(hwndTT, TTM_SETMAXTIPWIDTH, 0, 300);
-
             std::thread([this, hwndTT, hFont]() {
                 Sleep(1000);
                 if (IsWindow(hwndTT)) {
                     SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
                     DestroyWindow(hwndTT);
-                    DeleteObject(hFont);  // 清理字体资源
+                    DeleteObject(hFont);
                 }
                 if (currentTooltip == hwndTT) {
                     currentTooltip = NULL;
                 }
+      
+    
+    
+      
+    
             }).detach();
         }
     }
@@ -166,6 +170,19 @@ private:
         if (hwndTT) {
             currentTooltip = hwndTT;
 
+            HFONT hFont = CreateFontW(
+                16, 0, 0, 0,
+                FW_NORMAL,
+                FALSE, FALSE, FALSE,
+                DEFAULT_CHARSET,
+                OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS,
+                DEFAULT_QUALITY,
+                DEFAULT_PITCH | FF_DONTCARE,
+                L"微软雅黑"
+            );
+            SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
+
             wchar_t text[32];
             swprintf_s(text, L"%d", clickCount);
 
@@ -180,11 +197,12 @@ private:
             SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
             SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-            std::thread([this, hwndTT]() {
+            std::thread([this, hwndTT, hFont]() {
                 Sleep(1000);
                 if (IsWindow(hwndTT)) {
                     SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
                     DestroyWindow(hwndTT);
+                    DeleteObject(hFont);
                 }
                 if (currentTooltip == hwndTT) {
                     currentTooltip = NULL;
@@ -197,34 +215,40 @@ private:
         HWND targetWindow = GetForegroundWindow();
         if (!IsTargetGameWindow(targetWindow)) return;
 
-        POINT pt = { x, y };
-        ScreenToClient(targetWindow, &pt);
-        LPARAM lParam = MAKELPARAM(pt.x, pt.y);
-        
-        for (int i = 0; i < count && !stopClicking; i++) {
-            // 检查 E 和 R 键的状态
-            if ((GetAsyncKeyState('E') & 0x8000) || (GetAsyncKeyState('R') & 0x8000)) {
-                stopClicking = true;
-                isClicking = false;
-                break;
-            }
-      
-    
-    
-      
-    
+        // 创建独立线程进行连点
+        std::thread([this, targetWindow, x, y, count]() {
+            POINT pt = { x, y };
+            ScreenToClient(targetWindow, &pt);
+            
+            // 设置鼠标位置
+            SetCursorPos(x, y);
+            
+            for (int i = 0; i < count && !stopClicking; i++) {
+                // 检查停止条件
+                if ((GetAsyncKeyState('E') & 0x8000) || (GetAsyncKeyState('R') & 0x8000)) {
+                    stopClicking = true;
+                    isClicking = false;
+                    break;
+                }
 
-            PostMessage(targetWindow, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
-            Sleep(5);
-            PostMessage(targetWindow, WM_LBUTTONUP, MK_LBUTTON, lParam);
-            Sleep(clickInterval);
-        }
-        
-        isClicking = false;
+                // 使用 SendInput 发送鼠标事件
+                SendInput(1, &mouseDown, sizeof(INPUT));
+                Sleep(1);
+                SendInput(1, &mouseUp, sizeof(INPUT));
+                
+                if (clickInterval > 0) {
+                    Sleep(clickInterval);
+                }
+            }
+            
+            isClicking = false;
+        }).detach();
     }
 
 public:
-    bool stopClicking = false;
+    AutoClicker() {
+        InitMouseInput();  // 初始化鼠标输入结构
+    }
 
     bool IsGameActive() {
         return IsTargetGameWindow(GetForegroundWindow());
@@ -245,15 +269,7 @@ public:
         if (x > (screenWidth - 160)) {
             stopClicking = false;
             isClicking = true;
-            
-            if (clickThread.joinable()) {
-                clickThread.join();
-            }
-            
-            clickThread = std::thread([this, x, y]() {
-                PostClick(x, y, clickCount);
-            });
-            clickThread.detach();
+            PostClick(x, y, clickCount);
         }
     }
 
@@ -277,9 +293,6 @@ public:
 
     ~AutoClicker() {
         StopClicking();
-        if (clickThread.joinable()) {
-            clickThread.join();
-        }
         ClearCurrentTooltip();
     }
 };
@@ -301,6 +314,11 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         }
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);
+      
+    
+    
+      
+    
 }
 
 // 键盘处理函数
@@ -310,20 +328,15 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         
         if (wParam == WM_KEYDOWN) {
             switch (kbStruct->vkCode) {
-                case 'Q':  // Q 键处理
-                case 'W':  // W 键处理
+                case 'Q':
+                case 'W':
+                case 'E':
+                case 'R':
                     if (g_clicker.IsClicking()) {
                         g_clicker.StopClicking();
                     }
-                    // 返回 CallNextHookEx 让按键继续传递
+                    // 直接返回，让按键继续传递
                     return CallNextHookEx(NULL, nCode, wParam, lParam);
-
-                case 'E':  // E 键只停止连点
-                case 'R':  // R 键只停止连点
-                    if (g_clicker.IsClicking()) {
-                        g_clicker.StopClicking();
-                    }
-                    break;
             }
         }
     }
@@ -359,5 +372,3 @@ int main() {
     
     return 0;
 }
-
-
