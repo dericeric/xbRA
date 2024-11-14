@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write # 添加创建release的权限
+  contents: write
 
 jobs:
   build:
@@ -33,23 +33,32 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: cmake --build . --config Release
       
-    - name: List Build Directory # 添加此步骤来查看文件位置
-      run: |
-        dir ${{github.workspace}}/build/Release
-        dir ${{github.workspace}}/build/bin/Release
+    - name: List Build Directory
       shell: cmd
-      
+      run: |
+        dir "${{github.workspace}}\build\Release"
+        dir "${{github.workspace}}\build\bin\Release"
+        
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker
-        path: ${{github.workspace}}/build/bin/Release/AutoClicker.exe
+        path: |
+          ${{github.workspace}}\build\bin\Release\AutoClicker.exe
+          ${{github.workspace}}\build\Release\AutoClicker.exe
         
     - name: Create Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        files: ${{github.workspace}}/build/bin/Release/AutoClicker.exe
+        files: |
+          ${{github.workspace}}\build\bin\Release\AutoClicker.exe
+          ${{github.workspace}}\build\Release\AutoClicker.exe
+      
+    
+    
+      
+    
         tag_name: v${{ github.run_number }}
         name: Release v${{ github.run_number }}
         draft: false
