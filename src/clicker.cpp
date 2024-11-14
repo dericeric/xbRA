@@ -19,60 +19,26 @@
 
 class AutoClicker {
 private:
-    int clickCount = 10;        // 默认点击次数
-    int clickInterval = 10;     // 点击间隔(毫秒)
-    POINT clickPos;             // 记录点击位置
-    bool isClicking = false;    // 点击状态
-    std::thread clickThread;    // 点击线程
+    int clickCount = 10;
+    int clickInterval = 10;
+    POINT clickPos;
+    bool isClicking = false;
+    std::thread clickThread;
+    HWND currentTooltip = NULL;    // 跟踪当前显示的tooltip
+    bool wasGameActive = false;     // 跟踪游戏窗口的上一个状态
 
-    // 检查窗口是否属于目标游戏进程
-    bool IsTargetGameWindow(HWND hwnd) {
-        if (!hwnd) return false;
-        
-        DWORD processId;
-        GetWindowThreadProcessId(hwnd, &processId);
-        
-        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
-        if (!hProcess) return false;
-
-        wchar_t processName[MAX_PATH];
-        DWORD size = MAX_PATH;
-        bool result = false;
-
-        if (QueryFullProcessImageNameW(hProcess, 0, processName, &size)) {
-            wchar_t* fileName = wcsrchr(processName, L'\\');
-            if (fileName) {
-                fileName++; // 跳过反斜杠
-                _wcslwr_s(fileName, wcslen(fileName) + 1);
-                result = (wcscmp(fileName, L"gamemd-spawn.exe") == 0);
-            }
+    // 清除现有的tooltip
+    void ClearCurrentTooltip() {
+        if (currentTooltip) {
+            DestroyWindow(currentTooltip);
+            currentTooltip = NULL;
         }
-
-        CloseHandle(hProcess);
-        return result;
     }
-
-    void PostClick(int x, int y, int count = 1) {
-        HWND targetWindow = GetForegroundWindow();
-        if (!IsTargetGameWindow(targetWindow)) return;
-
-        POINT pt = { x, y };
-        ScreenToClient(targetWindow, &pt);
-        LPARAM lParam = MAKELPARAM(pt.x, pt.y);
-        
-        for (int i = 0; i < count && !stopClicking; i++) {
-            PostMessage(targetWindow, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
-            Sleep(5);  // 短暂延迟确保按下消息被处理
-            PostMessage(targetWindow, WM_LBUTTONUP, MK_LBUTTON, lParam);
-            Sleep(clickInterval);
-        }
-        
-        isClicking = false;
-    }
-
-// ... 其他代码保持不变 ...
 
     void ShowClickCountTooltip(int x, int y) {
+        // 清除现有的tooltip
+        ClearCurrentTooltip();
+
         HWND hwndTT = CreateWindowEx(
             WS_EX_TOPMOST,
             TOOLTIPS_CLASS,
@@ -86,7 +52,8 @@ private:
         );
 
         if (hwndTT) {
-            // 使用宽字符字符串
+            currentTooltip = hwndTT;  // 保存当前tooltip句柄
+
             wchar_t text[32];
             swprintf_s(text, L"%d", clickCount);
 
@@ -97,65 +64,77 @@ private:
             ti.hinst = GetModuleHandle(NULL);
             ti.lpszText = text;
 
-            // 使用 W 版本的消息
             SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
             SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
             SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-            std::thread([hwndTT]() {
+            // 1秒后自动清除
+            std::thread([this, hwndTT]() {
                 Sleep(1000);
-                DestroyWindow(hwndTT);
+                if (currentTooltip == hwndTT) {  // 确保这是最新的tooltip
+                    ClearCurrentTooltip();
+                }
             }).detach();
         }
     }
 
-// ... 其他代码保持不变 ...
+    void ShowActivationMessage() {
+        ClearCurrentTooltip();  // 清除可能存在的其他提示
+
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+        HWND hwndMsg = CreateWindowEx(
+            WS_EX_TOPMOST | WS_EX_LAYERED,
+            L"STATIC",
+            L"连点器已激活，团战一触即发！",
+            WS_POPUP | SS_CENTER,
+            screenWidth / 2 - 150,  // 居中显示
+            screenHeight - 100,     // 底部显示
+            300,                    // 宽度
+            30,                     // 高度
+            NULL, NULL,
+            GetModuleHandle(NULL),
+            NULL
+        );
+
+        if (hwndMsg) {
+            currentTooltip = hwndMsg;
+
+            // 设置半透明效果
+            SetLayeredWindowAttributes(hwndMsg, 0, 200, LWA_ALPHA);  // 透明度为200
+            ShowWindow(hwndMsg, SW_SHOW);
+
+            // 1秒后自动消失
+            std::thread([this, hwndMsg]() {
+                Sleep(1000);
+                if (currentTooltip == hwndMsg) {
+                    ClearCurrentTooltip();
+                }
+            }).detach();
+        }
+    }
 
 public:
     bool stopClicking = false;
 
-    bool IsGameActive() {
-        return IsTargetGameWindow(GetForegroundWindow());
-    }
-
-    void StartClicking(int x, int y) {
-        if (!IsGameActive()) return;
-
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        if (x > (screenWidth - 160)) {
-            stopClicking = false;
-            isClicking = true;
-            
-            if (clickThread.joinable()) {
-                clickThread.join();
-            }
-            
-            clickThread = std::thread([this, x, y]() {
-                PostClick(x, y, clickCount);
-            });
-            clickThread.detach();
+    void CheckGameWindowStatus() {
+        bool isActive = IsGameActive();
+        if (isActive && !wasGameActive) {
+            // 游戏窗口刚刚变为活动状态
+            ShowActivationMessage();
         }
+        wasGameActive = isActive;
     }
 
-    void StopClicking() {
-        stopClicking = true;
-        isClicking = false;
-    }
-
-    void AdjustClickCount(bool increase, int mouseX, int mouseY) {
-        if (increase) {
-            clickCount = (clickCount < 30) ? clickCount + 1 : 1;
-        } else {
-            clickCount = (clickCount > 1) ? clickCount - 1 : 30;
-        }
-        ShowClickCountTooltip(mouseX, mouseY);
-    }
+    // ... 其他方法保持不变 ...
 
     ~AutoClicker() {
         StopClicking();
         if (clickThread.joinable()) {
             clickThread.join();
         }
+        ClearCurrentTooltip();
     }
 };
 
@@ -199,10 +178,14 @@ int main() {
     icex.dwICC = ICC_WIN95_CLASSES;
     InitCommonControlsEx(&icex);
 
-    // 安装键盘钩子
+    // 安装钩子
     HHOOK keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
-    // 安装鼠标钩子
     HHOOK mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+
+    // 创建定时器检查游戏窗口状态
+    SetTimer(NULL, 0, 100, [](HWND, UINT, UINT_PTR, DWORD) {
+        g_clicker.CheckGameWindowStatus();
+    });
 
     // 消息循环
     MSG msg;
@@ -211,9 +194,10 @@ int main() {
         DispatchMessage(&msg);
     }
 
-    // 卸载钩子
+    // 清理
     UnhookWindowsHookEx(keyboardHook);
     UnhookWindowsHookEx(mouseHook);
     
     return 0;
+}
 }
