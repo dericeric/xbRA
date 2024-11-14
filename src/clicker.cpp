@@ -78,46 +78,42 @@ private:
     void ShowActivationMessage() {
         ClearCurrentTooltip();
 
-        static bool registered = false;
-        if (!registered) {
-            WNDCLASSEXW wc = { 0 };
-            wc.cbSize = sizeof(WNDCLASSEXW);
-            wc.lpfnWndProc = DefWindowProcW;
-            wc.hInstance = GetModuleHandle(NULL);
-            wc.lpszClassName = L"ActivationMessageClass";
-            RegisterClassExW(&wc);
-            registered = true;
-        }
-
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-        HWND hwnd = CreateWindowExW(
-            WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
-            L"ActivationMessageClass",
-            L"连点器已激活，团战一触即发！",
-            WS_POPUP,
-            (screenWidth - 300) / 2,
-            screenHeight - 100,
-            300,
-            30,
+        HWND hwndTT = CreateWindowEx(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASS,
             NULL,
-            NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL,
             GetModuleHandle(NULL),
             NULL
         );
 
-        if (hwnd) {
-            currentTooltip = hwnd;
-            SetLayeredWindowAttributes(hwnd, 0, 200, LWA_ALPHA);
-            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+        if (hwndTT) {
+            currentTooltip = hwndTT;
 
-            std::thread([this, hwnd]() {
+            TOOLINFOW ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFOW);
+            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+            ti.hwnd = NULL;
+            ti.hinst = GetModuleHandle(NULL);
+            ti.lpszText = L"连点器已激活，团战一触即发！";
+
+            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
+            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+            std::thread([this, hwndTT]() {
                 Sleep(1000);
-                if (IsWindow(hwnd)) {
-                    DestroyWindow(hwnd);
+                if (IsWindow(hwndTT)) {
+                    SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
+                    DestroyWindow(hwndTT);
                 }
-                if (currentTooltip == hwnd) {
+                if (currentTooltip == hwndTT) {
                     currentTooltip = NULL;
                 }
             }).detach();
@@ -127,46 +123,42 @@ private:
     void ShowClickCountTooltip(int x, int y) {
         ClearCurrentTooltip();
 
-        static bool registered = false;
-        if (!registered) {
-            WNDCLASSEXW wc = { 0 };
-            wc.cbSize = sizeof(WNDCLASSEXW);
-            wc.lpfnWndProc = DefWindowProcW;
-            wc.hInstance = GetModuleHandle(NULL);
-            wc.lpszClassName = L"ClickCountClass";
-            RegisterClassExW(&wc);
-            registered = true;
-        }
-
-        wchar_t text[32];
-        swprintf_s(text, L"%d", clickCount);
-
-        HWND hwnd = CreateWindowExW(
-            WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
-            L"ClickCountClass",
-            text,
-            WS_POPUP,
-            x - 15,
-            y - 30,
-            30,
-            20,
+        HWND hwndTT = CreateWindowEx(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASS,
             NULL,
-            NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL,
             GetModuleHandle(NULL),
             NULL
         );
 
-        if (hwnd) {
-            currentTooltip = hwnd;
-            SetLayeredWindowAttributes(hwnd, 0, 200, LWA_ALPHA);
-            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+        if (hwndTT) {
+            currentTooltip = hwndTT;
 
-            std::thread([this, hwnd]() {
+            wchar_t text[32];
+            swprintf_s(text, L"%d", clickCount);
+
+            TOOLINFOW ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFOW);
+            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+            ti.hwnd = NULL;
+            ti.hinst = GetModuleHandle(NULL);
+            ti.lpszText = text;
+
+            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
+            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+            std::thread([this, hwndTT]() {
                 Sleep(1000);
-                if (IsWindow(hwnd)) {
-                    DestroyWindow(hwnd);
+                if (IsWindow(hwndTT)) {
+                    SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
+                    DestroyWindow(hwndTT);
                 }
-                if (currentTooltip == hwnd) {
+                if (currentTooltip == hwndTT) {
                     currentTooltip = NULL;
                 }
             }).detach();
