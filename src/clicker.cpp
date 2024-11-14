@@ -54,87 +54,118 @@ private:
         return result;
     }
 
-    void ClearCurrentTooltip() {
-        if (currentTooltip) {
-            DestroyWindow(currentTooltip);
-            currentTooltip = NULL;
+    // ... 其他成员保持不变 ...
+
+    void ShowActivationMessage() {
+        ClearCurrentTooltip();
+
+        static bool registered = false;
+        if (!registered) {
+            WNDCLASSEXW wc = { 0 };
+            wc.cbSize = sizeof(WNDCLASSEXW);
+            wc.lpfnWndProc = DefWindowProcW;
+            wc.hInstance = GetModuleHandle(NULL);
+            wc.lpszClassName = L"ActivationMessageClass";
+            RegisterClassExW(&wc);
+            registered = true;
+        }
+
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+        HWND hwnd = CreateWindowExW(
+            WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+            L"ActivationMessageClass",
+            L"连点器已激活，团战一触即发！",
+            WS_POPUP,
+            (screenWidth - 300) / 2,
+            screenHeight - 100,
+            300,
+            30,
+            NULL,
+            NULL,
+            GetModuleHandle(NULL),
+            NULL
+        );
+
+        if (hwnd) {
+            currentTooltip = hwnd;
+            SetLayeredWindowAttributes(hwnd, 0, 200, LWA_ALPHA);
+            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+
+            // 创建线程在1秒后销毁窗口
+            std::thread([this, hwnd]() {
+                Sleep(1000);
+                if (IsWindow(hwnd)) {
+                    DestroyWindow(hwnd);
+                }
+                if (currentTooltip == hwnd) {
+                    currentTooltip = NULL;
+                }
+            }).detach();
         }
     }
 
     void ShowClickCountTooltip(int x, int y) {
         ClearCurrentTooltip();
 
-        HWND hwndTT = CreateWindowEx(
-            WS_EX_TOPMOST,
-            TOOLTIPS_CLASS,
-            NULL,
-            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            NULL, NULL,
-            GetModuleHandle(NULL),
-            NULL
-        );
-
-        if (hwndTT) {
-            currentTooltip = hwndTT;
-
-            wchar_t text[32];
-            swprintf_s(text, L"%d", clickCount);
-
-            TOOLINFOW ti = { 0 };
-            ti.cbSize = sizeof(TOOLINFOW);
-            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
-            ti.hwnd = NULL;
-            ti.hinst = GetModuleHandle(NULL);
-            ti.lpszText = text;
-
-            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
-            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
-            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
-
-            std::thread([this, hwndTT]() {
-                Sleep(1000);
-                if (currentTooltip == hwndTT) {
-                    ClearCurrentTooltip();
-                }
-            }).detach();
+        static bool registered = false;
+        if (!registered) {
+            WNDCLASSEXW wc = { 0 };
+            wc.cbSize = sizeof(WNDCLASSEXW);
+            wc.lpfnWndProc = DefWindowProcW;
+            wc.hInstance = GetModuleHandle(NULL);
+            wc.lpszClassName = L"ClickCountClass";
+            RegisterClassExW(&wc);
+            registered = true;
         }
-    }
 
-    void ShowActivationMessage() {
-        ClearCurrentTooltip();
+        wchar_t text[32];
+        swprintf_s(text, L"%d", clickCount);
 
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-        HWND hwndMsg = CreateWindowEx(
-            WS_EX_TOPMOST | WS_EX_LAYERED,
-            L"STATIC",
-            L"连点器已激活，团战一触即发！",
-            WS_POPUP | SS_CENTER,
-            screenWidth / 2 - 150,
-            screenHeight - 100,
-            300,
+        HWND hwnd = CreateWindowExW(
+            WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+            L"ClickCountClass",
+            text,
+            WS_POPUP,
+            x - 15,
+            y - 30,
             30,
-            NULL, NULL,
+            20,
+            NULL,
+            NULL,
             GetModuleHandle(NULL),
             NULL
         );
 
-        if (hwndMsg) {
-            currentTooltip = hwndMsg;
-            SetLayeredWindowAttributes(hwndMsg, 0, 200, LWA_ALPHA);
-            ShowWindow(hwndMsg, SW_SHOW);
+        if (hwnd) {
+            currentTooltip = hwnd;
+            SetLayeredWindowAttributes(hwnd, 0, 200, LWA_ALPHA);
+            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
 
-            std::thread([this, hwndMsg]() {
+            // 创建线程在1秒后销毁窗口
+            std::thread([this, hwnd]() {
                 Sleep(1000);
-                if (currentTooltip == hwndMsg) {
-                    ClearCurrentTooltip();
+                if (IsWindow(hwnd)) {
+                    DestroyWindow(hwnd);
+                }
+                if (currentTooltip == hwnd) {
+                    currentTooltip = NULL;
                 }
             }).detach();
         }
     }
+
+    void ClearCurrentTooltip() {
+        if (currentTooltip && IsWindow(currentTooltip)) {
+            DestroyWindow(currentTooltip);
+            currentTooltip = NULL;
+        }
+    }
+
+    // ... 其他方法保持不变 ...
+};
+
 
     void PostClick(int x, int y, int count = 1) {
         HWND targetWindow = GetForegroundWindow();
@@ -145,6 +176,13 @@ private:
         LPARAM lParam = MAKELPARAM(pt.x, pt.y);
         
         for (int i = 0; i < count && !stopClicking; i++) {
+            // 检查 E 和 R 键的状态
+            if ((GetAsyncKeyState('E') & 0x8000) || (GetAsyncKeyState('R') & 0x8000)) {
+                stopClicking = true;
+                isClicking = false;
+                break;
+            }
+
             PostMessage(targetWindow, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
             Sleep(5);
             PostMessage(targetWindow, WM_LBUTTONUP, MK_LBUTTON, lParam);
@@ -193,6 +231,10 @@ public:
         isClicking = false;
     }
 
+    bool IsClicking() const {
+        return isClicking;
+    }
+
     void AdjustClickCount(bool increase, int mouseX, int mouseY) {
         if (increase) {
             clickCount = (clickCount < 30) ? clickCount + 1 : 1;
@@ -232,12 +274,24 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 // 键盘处理函数
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
+      
+    
+    
+      
+    
     if (nCode >= 0 && g_clicker.IsGameActive()) {
         KBDLLHOOKSTRUCT* kbStruct = (KBDLLHOOKSTRUCT*)lParam;
         
         if (wParam == WM_KEYDOWN) {
-            if (kbStruct->vkCode == 'Q' || kbStruct->vkCode == 'W') {
-                g_clicker.StopClicking();
+            switch (kbStruct->vkCode) {
+                case 'Q':
+                case 'W':
+                case 'E':  // 添加 E 键检测
+                case 'R':  // 添加 R 键检测
+                    if (g_clicker.IsClicking()) {
+                        g_clicker.StopClicking();
+                    }
+                    break;
             }
         }
     }
