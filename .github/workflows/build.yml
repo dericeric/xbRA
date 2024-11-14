@@ -37,28 +37,18 @@ jobs:
       shell: cmd
       run: |
         dir "${{github.workspace}}\build\Release"
-        dir "${{github.workspace}}\build\bin\Release"
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker
-        path: |
-          ${{github.workspace}}\build\bin\Release\AutoClicker.exe
-          ${{github.workspace}}\build\Release\AutoClicker.exe
+        path: ${{github.workspace}}\build\Release\AutoClicker.exe
         
     - name: Create Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          ${{github.workspace}}\build\bin\Release\AutoClicker.exe
-          ${{github.workspace}}\build\Release\AutoClicker.exe
-      
-    
-    
-      
-    
+        files: ${{github.workspace}}\build\Release\AutoClicker.exe
         tag_name: v${{ github.run_number }}
         name: Release v${{ github.run_number }}
         draft: false
