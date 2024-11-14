@@ -310,10 +310,16 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         
         if (wParam == WM_KEYDOWN) {
             switch (kbStruct->vkCode) {
-                case 'Q':
-                case 'W':
-                case 'E':  // 添加 E 键检测
-                case 'R':  // 添加 R 键检测
+                case 'Q':  // Q 键处理
+                case 'W':  // W 键处理
+                    if (g_clicker.IsClicking()) {
+                        g_clicker.StopClicking();
+                    }
+                    // 返回 CallNextHookEx 让按键继续传递
+                    return CallNextHookEx(NULL, nCode, wParam, lParam);
+
+                case 'E':  // E 键只停止连点
+                case 'R':  // R 键只停止连点
                     if (g_clicker.IsClicking()) {
                         g_clicker.StopClicking();
                     }
