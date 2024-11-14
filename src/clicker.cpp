@@ -1,5 +1,12 @@
 #include <windows.h>
 #include <iostream>
+      
+    
+    
+      
+    
+#include <psapi.h>
+#include <tlhelp32.h>
 
 class AutoClicker {
 private:
@@ -9,14 +16,78 @@ private:
     bool isClicking = false;    // 点击状态
     HWND gameWindow = NULL;     // 游戏窗口句柄
 
+    // 新增：检查窗口是否属于指定进程
+    bool IsWindowFromProcess(HWND hwnd, const wchar_t* processName) {
+        DWORD processId;
+        GetWindowThreadProcessId(hwnd, &processId);
+        
+        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snapshot == INVALID_HANDLE_VALUE) return false;
+
+        PROCESSENTRY32W pe32;
+        pe32.dwSize = sizeof(pe32);
+
+        bool found = false;
+        if (Process32FirstW(snapshot, &pe32)) {
+            do {
+                if (processId == pe32.th32ProcessID) {
+                    found = (_wcsicmp(pe32.szExeFile, processName) == 0);
+                    break;
+                }
+            } while (Process32NextW(snapshot, &pe32));
+        }
+
+        CloseHandle(snapshot);
+        return found;
+    }
+
+    // 新增：查找游戏窗口
+    HWND FindGameWindow() {
+        // 存储找到的窗口句柄
+        HWND result = NULL;
+        
+        // 枚举所有顶层窗口
+        EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
+            AutoClicker* self = reinterpret_cast<AutoClicker*>(lParam);
+            
+            // 检查窗口是否可见
+            if (!IsWindowVisible(hwnd)) return TRUE;
+            
+            // 检查是否是游戏进程的窗口
+            if (self->IsWindowFromProcess(hwnd, L"gamemd-spawn.exe")) {
+      
+    
+    
+      
+    
+                self->gameWindow = hwnd;
+                return FALSE; // 停止枚举
+            }
+            return TRUE; // 继续枚举
+        }, reinterpret_cast<LPARAM>(this));
+
+        return gameWindow;
+    }
+
 public:
     AutoClicker() {
-        // 查找红警2窗口
-        gameWindow = FindWindow(NULL, L"Command & Conquer Red Alert 2");
+        // 查找游戏窗口
+        gameWindow = FindGameWindow();
+        if (gameWindow) {
+            std::cout << "Game window found!" << std::endl;
+        } else {
+            std::cout << "Game window not found!" << std::endl;
+        }
+    }
+
+    bool IsGameActive() {
+        // 检查游戏窗口是否存在且为活动窗口
+        return (gameWindow != NULL && gameWindow == GetForegroundWindow());
     }
 
     void SimulateClick() {
-        if (!gameWindow) return;
+        // 只在游戏窗口激活时执行点击
+        if (!IsGameActive()) return;
 
         // 发送鼠标点击消息到游戏窗口
         PostMessage(gameWindow, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(clickPos.x, clickPos.y));
@@ -76,27 +147,26 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
-// 鼠标处理函数
+// 修改鼠标处理函数
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     static AutoClicker clicker;
     
     if (nCode >= 0) {
         MSLLHOOKSTRUCT* msStruct = (MSLLHOOKSTRUCT*)lParam;
         
-        if (wParam == WM_LBUTTONDOWN && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
-            clicker.StartClicking();
-        }
-        // 处理鼠标滚轮调整点击次数
-        else if (wParam == WM_MOUSEWHEEL && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
-            int wheelDelta = GET_WHEEL_DELTA_WPARAM(msStruct->mouseData);
-            clicker.AdjustClickCount(wheelDelta > 0);
+        // 只在游戏窗口激活时处理点击
+        if (clicker.IsGameActive()) {
+            if (wParam == WM_LBUTTONDOWN && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
+                clicker.StartClicking();
+            }
+            else if (wParam == WM_MOUSEWHEEL && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
+                int wheelDelta = GET_WHEEL_DELTA_WPARAM(msStruct->mouseData);
+                clicker.AdjustClickCount(wheelDelta > 0);
+            }
         }
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
-      
-    
-    
       
     
 
