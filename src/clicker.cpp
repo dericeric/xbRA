@@ -10,7 +10,17 @@
 #if defined _M_IX86
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #elif defined _M_IA64
+      
+    
+    
+      
+    
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='ia64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+      
+    
+    
+      
+    
 #elif defined _M_X64
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #else
@@ -27,7 +37,6 @@ private:
     HWND currentTooltip = NULL;
     bool wasGameActive = false;
 
-    // 检查窗口是否属于目标游戏进程
     bool IsTargetGameWindow(HWND hwnd) {
         if (!hwnd) return false;
         
@@ -45,6 +54,11 @@ private:
             wchar_t* fileName = wcsrchr(processName, L'\\');
             if (fileName) {
                 fileName++;
+      
+    
+    
+      
+    
                 _wcslwr_s(fileName, wcslen(fileName) + 1);
                 result = (wcscmp(fileName, L"gamemd-spawn.exe") == 0);
             }
@@ -54,7 +68,12 @@ private:
         return result;
     }
 
-    // ... 其他成员保持不变 ...
+    void ClearCurrentTooltip() {
+        if (currentTooltip && IsWindow(currentTooltip)) {
+            DestroyWindow(currentTooltip);
+            currentTooltip = NULL;
+        }
+    }
 
     void ShowActivationMessage() {
         ClearCurrentTooltip();
@@ -93,7 +112,6 @@ private:
             SetLayeredWindowAttributes(hwnd, 0, 200, LWA_ALPHA);
             ShowWindow(hwnd, SW_SHOWNOACTIVATE);
 
-            // 创建线程在1秒后销毁窗口
             std::thread([this, hwnd]() {
                 Sleep(1000);
                 if (IsWindow(hwnd)) {
@@ -143,7 +161,6 @@ private:
             SetLayeredWindowAttributes(hwnd, 0, 200, LWA_ALPHA);
             ShowWindow(hwnd, SW_SHOWNOACTIVATE);
 
-            // 创建线程在1秒后销毁窗口
             std::thread([this, hwnd]() {
                 Sleep(1000);
                 if (IsWindow(hwnd)) {
@@ -155,17 +172,6 @@ private:
             }).detach();
         }
     }
-
-    void ClearCurrentTooltip() {
-        if (currentTooltip && IsWindow(currentTooltip)) {
-            DestroyWindow(currentTooltip);
-            currentTooltip = NULL;
-        }
-    }
-
-    // ... 其他方法保持不变 ...
-};
-
 
     void PostClick(int x, int y, int count = 1) {
         HWND targetWindow = GetForegroundWindow();
@@ -182,6 +188,11 @@ private:
                 isClicking = false;
                 break;
             }
+      
+    
+    
+      
+    
 
             PostMessage(targetWindow, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
             Sleep(5);
@@ -274,11 +285,6 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 // 键盘处理函数
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
-      
-    
-    
-      
-    
     if (nCode >= 0 && g_clicker.IsGameActive()) {
         KBDLLHOOKSTRUCT* kbStruct = (KBDLLHOOKSTRUCT*)lParam;
         
@@ -299,26 +305,33 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 int main() {
+    // 初始化 Common Controls
     INITCOMMONCONTROLSEX icex;
     icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icex.dwICC = ICC_WIN95_CLASSES;
     InitCommonControlsEx(&icex);
 
+    // 安装钩子
     HHOOK keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
     HHOOK mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
 
+    // 创建定时器检查游戏窗口状态
     SetTimer(NULL, 0, 100, [](HWND, UINT, UINT_PTR, DWORD) {
         g_clicker.CheckGameWindowStatus();
     });
 
+    // 消息循环
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
+    // 清理
     UnhookWindowsHookEx(keyboardHook);
     UnhookWindowsHookEx(mouseHook);
     
     return 0;
 }
+
+
