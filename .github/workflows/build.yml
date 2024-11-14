@@ -1,0 +1,37 @@
+name: Build Clicker
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: Setup CMAKE
+      uses: jwlawson/actions-setup-cmake@v1.13
+      
+    - name: Create Build Directory
+      run: cmake -E make_directory ${{github.workspace}}/build
+      
+    - name: Configure CMake
+      working-directory: ${{github.workspace}}/build
+      run: cmake ..
+      
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: cmake --build . --config Release
+      
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: AutoClicker
+        path: ${{github.workspace}}/build/Release/AutoClicker.exe
