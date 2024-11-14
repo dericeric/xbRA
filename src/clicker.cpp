@@ -1,22 +1,37 @@
 #include <windows.h>
 #include <iostream>
-      
-    
-    
-      
-    
 #include <psapi.h>
 #include <tlhelp32.h>
 
 class AutoClicker {
 private:
     int clickCount = 10;        // 默认点击次数
-    int clickInterval = 20;     // 点击间隔(毫秒)
+    int clickInterval = 10;     // 点击间隔(毫秒)
     POINT clickPos;             // 记录点击位置
     bool isClicking = false;    // 点击状态
     HWND gameWindow = NULL;     // 游戏窗口句柄
 
-    // 新增：检查窗口是否属于指定进程
+    // 使用PostMessage模拟点击
+    void PostClick(int x, int y, int count = 1) {
+        if (!gameWindow) return;
+
+        // 将屏幕坐标转换为客户区坐标
+        POINT pt = { x, y };
+        ScreenToClient(gameWindow, &pt);
+        
+        // 构造消息参数
+        LPARAM lParam = MAKELPARAM(pt.x, pt.y);
+        
+        // 执行指定次数的点击
+        for (int i = 0; i < count && !stopClicking; i++) {
+            PostMessage(gameWindow, WM_LBUTTONDOWN, MK_LBUTTON, lParam);
+            PostMessage(gameWindow, WM_LBUTTONUP, MK_LBUTTON, lParam);
+            Sleep(clickInterval);
+        }
+        
+        isClicking = false;
+    }
+
     bool IsWindowFromProcess(HWND hwnd, const wchar_t* processName) {
         DWORD processId;
         GetWindowThreadProcessId(hwnd, &processId);
@@ -41,161 +56,117 @@ private:
         return found;
     }
 
-    // 新增：查找游戏窗口
-    HWND FindGameWindow() {
-        // 存储找到的窗口句柄
-        HWND result = NULL;
-        
-        // 枚举所有顶层窗口
-        EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
-            AutoClicker* self = reinterpret_cast<AutoClicker*>(lParam);
-            
-            // 检查窗口是否可见
-            if (!IsWindowVisible(hwnd)) return TRUE;
-            
-            // 检查是否是游戏进程的窗口
-            if (self->IsWindowFromProcess(hwnd, L"gamemd-spawn.exe")) {
-      
-    
-    
-      
-    
-                self->gameWindow = hwnd;
-                return FALSE; // 停止枚举
-            }
-            return TRUE; // 继续枚举
-        }, reinterpret_cast<LPARAM>(this));
-
-        return gameWindow;
-    }
-
 public:
+    bool stopClicking = false;
+
     AutoClicker() {
         // 查找游戏窗口
-        gameWindow = FindGameWindow();
-        if (gameWindow) {
-            std::cout << "Game window found!" << std::endl;
-        } else {
-            std::cout << "Game window not found!" << std::endl;
+        gameWindow = FindWindowW(NULL, L"Command & Conquer Red Alert 2");
+        if (!gameWindow) {
+            gameWindow = FindWindowW(NULL, L"gamemd-spawn.exe");
         }
     }
 
     bool IsGameActive() {
-        // 检查游戏窗口是否存在且为活动窗口
         return (gameWindow != NULL && gameWindow == GetForegroundWindow());
     }
 
-    void SimulateClick() {
-        // 只在游戏窗口激活时执行点击
+    void StartClicking(int x, int y) {
         if (!IsGameActive()) return;
 
-        // 发送鼠标点击消息到游戏窗口
-        PostMessage(gameWindow, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(clickPos.x, clickPos.y));
-        Sleep(10);
-        PostMessage(gameWindow, WM_LBUTTONUP, MK_LBUTTON, MAKELPARAM(clickPos.x, clickPos.y));
-    }
-
-    void StartClicking() {
-        // 获取当前鼠标位置
-        GetCursorPos(&clickPos);
-        
-        // 检查是否在屏幕右侧
-        RECT screenRect;
-        GetWindowRect(GetDesktopWindow(), &screenRect);
-        if (clickPos.x < (screenRect.right - 160)) {
-            SimulateClick();
-            return;
+        // 检查是否在屏幕右侧160像素范围内
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        if (x > (screenWidth - 160)) {
+            stopClicking = false;
+            isClicking = true;
+            
+            // 创建新线程执行点击，避免阻塞主线程
+            std::thread([this, x, y]() {
+                PostClick(x, y, clickCount);
+            }).detach();
         }
-
-        isClicking = true;
-        for (int i = 0; i < clickCount && isClicking; i++) {
-            SimulateClick();
-            Sleep(clickInterval);
-        }
-        isClicking = false;
     }
 
     void StopClicking() {
+        stopClicking = true;
         isClicking = false;
     }
 
-    // 调整点击次数
     void AdjustClickCount(bool increase) {
         if (increase) {
             clickCount = (clickCount < 30) ? clickCount + 1 : 1;
         } else {
             clickCount = (clickCount > 1) ? clickCount - 1 : 30;
         }
-        std::cout << "Click count: " << clickCount << std::endl;
+        
+        // 显示提示
+        ShowClickCountTooltip();
+    }
+
+private:
+    void ShowClickCountTooltip() {
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        
+        // 创建提示文本
+        char tooltipText[32];
+        sprintf_s(tooltipText, "%d", clickCount);
+        
+        // 显示提示
+        HWND hwndTT = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL, GetModuleHandle(NULL), NULL);
+
+        TOOLINFO ti = { 0 };
+        ti.cbSize = sizeof(TOOLINFO);
+        ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+        ti.hwnd = NULL;
+        ti.hinst = GetModuleHandle(NULL);
+        ti.lpszText = tooltipText;
+        
+        SendMessage(hwndTT, TTM_ADDTOOL, 0, (LPARAM)&ti);
+        SendMessage(hwndTT, TTM_TRACKPOSITION, 0, 
+            MAKELONG(screenWidth / 2, screenHeight - 80));
+        SendMessage(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+        // 1秒后销毁提示
+        std::thread([hwndTT]() {
+            Sleep(1000);
+            DestroyWindow(hwndTT);
+        }).detach();
     }
 };
 
-// 热键处理函数
+// 全局实例
+AutoClicker g_clicker;
+
+// 鼠标处理函数
+LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (nCode >= 0 && g_clicker.IsGameActive()) {
+        MSLLHOOKSTRUCT* msStruct = (MSLLHOOKSTRUCT*)lParam;
+        
+        if (wParam == WM_LBUTTONDOWN && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
+            g_clicker.StartClicking(msStruct->pt.x, msStruct->pt.y);
+        }
+        else if (wParam == WM_MOUSEWHEEL && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
+            int wheelDelta = GET_WHEEL_DELTA_WPARAM(msStruct->mouseData);
+            g_clicker.AdjustClickCount(wheelDelta > 0);
+        }
+    }
+    return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+// 键盘处理函数
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    static AutoClicker clicker;
-    
-    if (nCode >= 0) {
+    if (nCode >= 0 && g_clicker.IsGameActive()) {
         KBDLLHOOKSTRUCT* kbStruct = (KBDLLHOOKSTRUCT*)lParam;
         
         if (wParam == WM_KEYDOWN) {
-            // 检查是否按下Q或W键停止点击
             if (kbStruct->vkCode == 'Q' || kbStruct->vkCode == 'W') {
-                clicker.StopClicking();
+                g_clicker.StopClicking();
             }
         }
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);
-}
-
-// 修改鼠标处理函数
-LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    static AutoClicker clicker;
-    
-    if (nCode >= 0) {
-        MSLLHOOKSTRUCT* msStruct = (MSLLHOOKSTRUCT*)lParam;
-        
-        // 只在游戏窗口激活时处理点击
-        if (clicker.IsGameActive()) {
-            if (wParam == WM_LBUTTONDOWN && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
-                clicker.StartClicking();
-            }
-            else if (wParam == WM_MOUSEWHEEL && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
-                int wheelDelta = GET_WHEEL_DELTA_WPARAM(msStruct->mouseData);
-                clicker.AdjustClickCount(wheelDelta > 0);
-            }
-        }
-    }
-    return CallNextHookEx(NULL, nCode, wParam, lParam);
-}
-      
-    
-
-// ... 原有代码保持不变 ...
-
-// 在main函数开始添加控制台窗口
-int main() {
-    // 创建控制台窗口以显示点击次数
-    AllocConsole();
-    FILE* dummy;
-    freopen_s(&dummy, "CONOUT$", "w", stdout);
-
-    // ... 原有的main函数代码 ...
-
-    // 安装键盘钩子
-    HHOOK keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
-    // 安装鼠标钩子
-    HHOOK mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
-
-    // 消息循环
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-
-    // 卸载钩子
-    UnhookWindowsHookEx(keyboardHook);
-    UnhookWindowsHookEx(mouseHook);
-    
-    return 0;
 }
