@@ -3,6 +3,19 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <thread>
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
+
+// 确保 Common Controls 6.0 可用
+#if defined _M_IX86
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_IA64
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='ia64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_X64
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#else
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#endif
 
 class AutoClicker {
 private:
@@ -10,7 +23,6 @@ private:
     int clickInterval = 10;     // 点击间隔(毫秒)
     POINT clickPos;             // 记录点击位置
     bool isClicking = false;    // 点击状态
-    HWND gameWindow = NULL;     // 游戏窗口句柄
     std::thread clickThread;    // 点击线程
 
     // 检查窗口是否属于目标游戏进程
@@ -58,36 +70,37 @@ private:
         isClicking = false;
     }
 
-    void ShowClickCountTooltip() {
-        char text[32];
-        sprintf_s(text, "Clicks: %d", clickCount);
-        
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-        
-        HWND hwnd = CreateWindowEx(
-            WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
-            L"STATIC",
+    void ShowClickCountTooltip(int x, int y) {
+        HWND hwndTT = CreateWindowEx(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASS,
             NULL,
-            WS_POPUP | SS_CENTER,
-            screenWidth / 2 - 50,
-            screenHeight - 100,
-            100,
-            20,
-            NULL,
-            NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL,
             GetModuleHandle(NULL),
             NULL
         );
 
-        if (hwnd) {
-            SetWindowTextA(hwnd, text);
-            ShowWindow(hwnd, SW_SHOW);
-            
-            // 使用线程延迟销毁提示窗口
-            std::thread([hwnd]() {
+        if (hwndTT) {
+            char text[32];
+            sprintf_s(text, "%d", clickCount);
+
+            TOOLINFO ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFO);
+            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+            ti.hwnd = NULL;
+            ti.hinst = GetModuleHandle(NULL);
+            ti.lpszText = text;
+
+            SendMessage(hwndTT, TTM_ADDTOOL, 0, (LPARAM)&ti);
+            SendMessage(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
+            SendMessage(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+            std::thread([hwndTT]() {
                 Sleep(1000);
-                DestroyWindow(hwnd);
+                DestroyWindow(hwndTT);
             }).detach();
         }
     }
@@ -107,12 +120,10 @@ public:
             stopClicking = false;
             isClicking = true;
             
-            // 如果之前的线程还在运行，等待它结束
             if (clickThread.joinable()) {
                 clickThread.join();
             }
             
-            // 启动新的点击线程
             clickThread = std::thread([this, x, y]() {
                 PostClick(x, y, clickCount);
             });
@@ -125,13 +136,13 @@ public:
         isClicking = false;
     }
 
-    void AdjustClickCount(bool increase) {
+    void AdjustClickCount(bool increase, int mouseX, int mouseY) {
         if (increase) {
             clickCount = (clickCount < 30) ? clickCount + 1 : 1;
         } else {
             clickCount = (clickCount > 1) ? clickCount - 1 : 30;
         }
-        ShowClickCountTooltip();
+        ShowClickCountTooltip(mouseX, mouseY);
     }
 
     ~AutoClicker() {
@@ -155,7 +166,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         }
         else if (wParam == WM_MOUSEWHEEL && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
             int wheelDelta = GET_WHEEL_DELTA_WPARAM(msStruct->mouseData);
-            g_clicker.AdjustClickCount(wheelDelta > 0);
+            g_clicker.AdjustClickCount(wheelDelta > 0, msStruct->pt.x, msStruct->pt.y);
         }
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);
@@ -176,6 +187,27 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 int main() {
+    // 初始化 Common Controls
+    INITCOMMONCONTROLSEX icex;
+    icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+    icex.dwICC = ICC_WIN95_CLASSES;
+    InitCommonControlsEx(&icex);
+
     // 安装键盘钩子
     HHOOK keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
-    // 安装
+    // 安装鼠标钩子
+    HHOOK mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, NULL, 0);
+
+    // 消息循环
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    // 卸载钩子
+    UnhookWindowsHookEx(keyboardHook);
+    UnhookWindowsHookEx(mouseHook);
+    
+    return 0;
+}
