@@ -3,6 +3,11 @@ name: Build RedAlertClicker
 on:
   push:
     branches:
+      
+    
+    
+      
+    
       - main
 
 jobs:
@@ -14,15 +19,13 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up .NET
+      
+    
+    
+      
+    
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '6.0.x' # 使用与项目相同的 .NET 版本
+          dotnet-version: '6.x' # 选择合适的 .NET 版本
 
-      - name: Build the application
-        run: dotnet publish RedAlertClicker.csproj -c Release -r win-x64 --self-contained -o output
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: RedAlertClicker
-          path: output/
+      - name: Publish as st
