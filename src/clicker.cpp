@@ -70,6 +70,8 @@ private:
         isClicking = false;
     }
 
+// ... 其他代码保持不变 ...
+
     void ShowClickCountTooltip(int x, int y) {
         HWND hwndTT = CreateWindowEx(
             WS_EX_TOPMOST,
@@ -84,19 +86,21 @@ private:
         );
 
         if (hwndTT) {
-            char text[32];
-            sprintf_s(text, "%d", clickCount);
+            // 使用宽字符字符串
+            wchar_t text[32];
+            swprintf_s(text, L"%d", clickCount);
 
-            TOOLINFO ti = { 0 };
-            ti.cbSize = sizeof(TOOLINFO);
+            TOOLINFOW ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFOW);
             ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
             ti.hwnd = NULL;
             ti.hinst = GetModuleHandle(NULL);
             ti.lpszText = text;
 
-            SendMessage(hwndTT, TTM_ADDTOOL, 0, (LPARAM)&ti);
-            SendMessage(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
-            SendMessage(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+            // 使用 W 版本的消息
+            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
+            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
             std::thread([hwndTT]() {
                 Sleep(1000);
@@ -104,6 +108,8 @@ private:
             }).detach();
         }
     }
+
+// ... 其他代码保持不变 ...
 
 public:
     bool stopClicking = false;
