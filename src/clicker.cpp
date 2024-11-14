@@ -78,9 +78,10 @@ private:
     void ShowActivationMessage() {
         ClearCurrentTooltip();
 
-        HWND hwndTT = CreateWindowEx(
+        // 创建 ToolTip 窗口
+        HWND hwndTT = CreateWindowExW(
             WS_EX_TOPMOST,
-            TOOLTIPS_CLASS,
+            TOOLTIPS_CLASSW,  // 使用 Unicode 版本
             NULL,
             WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
             CW_USEDEFAULT, CW_USEDEFAULT,
@@ -92,6 +93,24 @@ private:
 
         if (hwndTT) {
             currentTooltip = hwndTT;
+
+            // 设置 ToolTip 的字体为支持中文的字体
+            HFONT hFont = CreateFontW(
+                16,                     // 字体高度
+                0,                      // 字体宽度
+                0, 0,                   // 角度
+                FW_NORMAL,              // 字体粗细
+                FALSE,                  // 斜体
+                FALSE,                  // 下划线
+                FALSE,                  // 删除线
+                DEFAULT_CHARSET,        // 字符集
+                OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS,
+                DEFAULT_QUALITY,
+                DEFAULT_PITCH | FF_DONTCARE,
+                L"微软雅黑"             // 字体名称
+            );
+            SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
 
             TOOLINFOW ti = { 0 };
             ti.cbSize = sizeof(TOOLINFOW);
@@ -107,11 +126,15 @@ private:
             SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
             SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-            std::thread([this, hwndTT]() {
+            // 设置最大宽度以支持多行文本
+            SendMessageW(hwndTT, TTM_SETMAXTIPWIDTH, 0, 300);
+
+            std::thread([this, hwndTT, hFont]() {
                 Sleep(1000);
                 if (IsWindow(hwndTT)) {
                     SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
                     DestroyWindow(hwndTT);
+                    DeleteObject(hFont);  // 清理字体资源
                 }
                 if (currentTooltip == hwndTT) {
                     currentTooltip = NULL;
