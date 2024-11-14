@@ -117,7 +117,12 @@ private:
             ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
             ti.hwnd = NULL;
             ti.hinst = GetModuleHandle(NULL);
-            ti.lpszText = L"连点器已激活，团战一触即发！";
+      
+    
+    
+      
+    
+            ti.lpszText = L"[xb] Auto-Clicker Ready! Let's Fight! ";
 
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
