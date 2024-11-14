@@ -14,7 +14,7 @@ namespace RedAlertClicker
         static int clicksRemaining = 0;
         static bool stopClicking = false;
         static int clickInterval = 100; // 可根据需要调整
-        static Timer clickTimer;
+        static System.Windows.Forms.Timer clickTimer;
 
         [DllImport("user32.dll")]
         private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
@@ -23,7 +23,7 @@ namespace RedAlertClicker
 
         static void Main(string[] args)
         {
-            clickTimer = new Timer { Interval = clickInterval };
+            clickTimer = new System.Windows.Forms.Timer { Interval = clickInterval };
             clickTimer.Tick += DoFixedPositionClick;
 
             Application.Run(new KeyboardHookListener());
@@ -99,4 +99,3 @@ namespace RedAlertClicker
         }
     }
 }
-
