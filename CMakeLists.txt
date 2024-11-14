@@ -16,8 +16,15 @@ add_definitions(-DUNICODE -D_UNICODE)
 # 添加可执行文件
 add_executable(AutoClicker src/clicker.cpp)
 
+# ... 其他配置保持不变 ...
+
 # 添加Windows链接库
-target_link_libraries(AutoClicker PRIVATE user32.lib)
+target_link_libraries(AutoClicker PRIVATE 
+    user32.lib 
+    psapi.lib
+)
+
+# ... 其他配置保持不变 ...
 
 # 设置Windows子系统
 set_target_properties(AutoClicker PROPERTIES
