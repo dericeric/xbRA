@@ -3,6 +3,11 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <thread>
+      
+    
+    
+      
+    
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
 
@@ -78,6 +83,22 @@ private:
 void ShowActivationMessage() {
     ClearCurrentTooltip();
 
+    // 首先定义原始的 UTF-8 字符串
+    const char* utf8Text = "[小白] 连点器已就绪！战斗模式启动！";
+    
+    // 计算需要的宽字符缓冲区大小
+    int wideSize = MultiByteToWideChar(CP_UTF8, 0, utf8Text, -1, NULL, 0);
+    if (wideSize <= 0) return;
+
+    // 分配宽字符缓冲区
+    wchar_t* wideText = new wchar_t[wideSize];
+    
+    // 转换为宽字符
+    if (MultiByteToWideChar(CP_UTF8, 0, utf8Text, -1, wideText, wideSize) <= 0) {
+        delete[] wideText;
+        return;
+    }
+
     HWND hwndTT = CreateWindowExW(
         WS_EX_TOPMOST,
         TOOLTIPS_CLASSW,
@@ -93,7 +114,6 @@ void ShowActivationMessage() {
     if (hwndTT) {
         currentTooltip = hwndTT;
 
-        // 使用宋体（SimSun）作为最通用的中文字体
         HFONT hFont = CreateFontW(
             16,                     // 高度
             0,                      // 宽度
@@ -102,11 +122,11 @@ void ShowActivationMessage() {
             FALSE,                  // 斜体
             FALSE,                  // 下划线
             FALSE,                  // 删除线
-            CHINESEBIG5_CHARSET,    // 使用繁体中文字符集试试
+            DEFAULT_CHARSET,        // 使用默认字符集
             OUT_DEFAULT_PRECIS,
             CLIP_DEFAULT_PRECIS,
-            DEFAULT_QUALITY,        // 使用默认质量
-            FF_DONTCARE,           // 使用默认字体族
+            DEFAULT_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE,
             L"SimSun"              // 宋体
         );
 
@@ -114,15 +134,12 @@ void ShowActivationMessage() {
             SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
         }
 
-        // 确保源代码文件以 UTF-8 with BOM 保存
-        const wchar_t* message = L"[小白] 连点器已就绪！战斗模式启动！";
-        
         TOOLINFOW ti = { 0 };
         ti.cbSize = sizeof(TOOLINFOW);
         ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
         ti.hwnd = NULL;
         ti.hinst = GetModuleHandle(NULL);
-        ti.lpszText = (LPWSTR)message;
+        ti.lpszText = wideText;    // 使用转换后的宽字符文本
 
         int screenWidth = GetSystemMetrics(SM_CXSCREEN);
         int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -132,7 +149,8 @@ void ShowActivationMessage() {
         SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
         SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-        std::thread([this, hwndTT, hFont]() {
+        // 注意：需要在线程中也使用 wideText
+        std::thread([this, hwndTT, hFont, wideText]() {
             Sleep(1000);
             if (IsWindow(hwndTT)) {
                 SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
@@ -144,7 +162,10 @@ void ShowActivationMessage() {
             if (currentTooltip == hwndTT) {
                 currentTooltip = NULL;
             }
+            delete[] wideText;  // 清理内存
         }).detach();
+    } else {
+        delete[] wideText;  // 如果创建窗口失败，清理内存
     }
 }
 
