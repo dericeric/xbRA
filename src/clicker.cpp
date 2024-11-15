@@ -106,8 +106,149 @@ private:
         AttachThreadInput(currentThreadId, targetThreadId, FALSE);
         isClicking = false;
     }
+      
+// 在 AutoClicker 类的 private 部分添加：
+    bool IsTargetGameWindow(HWND hwnd) {
+        if (!hwnd) return false;
+        
+        DWORD processId;
+        GetWindowThreadProcessId(hwnd, &processId);
+        
+        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+        if (!hProcess) return false;
+
+        wchar_t processName[MAX_PATH];
+        DWORD size = MAX_PATH;
+        bool result = false;
+
+        if (QueryFullProcessImageNameW(hProcess, 0, processName, &size)) {
+            wchar_t* fileName = wcsrchr(processName, L'\\');
+            if (fileName) {
+                fileName++;
+                _wcslwr_s(fileName, wcslen(fileName) + 1);
+                result = (wcscmp(fileName, L"gamemd-spawn.exe") == 0);
+            }
+        }
+
+        CloseHandle(hProcess);
+        return result;
+    }
+
+    void ClearCurrentTooltip() {
+        if (currentTooltip && IsWindow(currentTooltip)) {
+            DestroyWindow(currentTooltip);
+            currentTooltip = NULL;
+        }
+    }
+
+    void ShowActivationMessage() {
+        ClearCurrentTooltip();
+
+        HWND hwndTT = CreateWindowExW(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASSW,
+            NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL,
+            GetModuleHandle(NULL),
+            NULL
+        );
+
+        if (hwndTT) {
+            currentTooltip = hwndTT;
+
+            HFONT hFont = CreateFontW(
+                16, 0, 0, 0,
+                FW_NORMAL,
+                FALSE, FALSE, FALSE,
+                DEFAULT_CHARSET,
+                OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS,
+                DEFAULT_QUALITY,
+                DEFAULT_PITCH | FF_DONTCARE,
+                L"微软雅黑"
+            );
+            SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+            TOOLINFOW ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFOW);
+            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+            ti.hwnd = NULL;
+            ti.hinst = GetModuleHandle(NULL);
+            ti.lpszText = L"[xb] Auto-Clicker Ready! Let's Fight!";
+
+            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
+            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+            std::thread([this, hwndTT, hFont]() {
+                Sleep(1000);
+                if (IsWindow(hwndTT)) {
+                    SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
+                    DestroyWindow(hwndTT);
+                    DeleteObject(hFont);
+                }
+                if (currentTooltip == hwndTT) {
+                    currentTooltip = NULL;
+                }
+            }).detach();
+        }
+    }
+
+    void ShowClickCountTooltip(int x, int y) {
+        ClearCurrentTooltip();
+
+        HWND hwndTT = CreateWindowEx(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASS,
+            NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL,
+            GetModuleHandle(NULL),
+            NULL
+        );
+
+        if (hwndTT) {
+            currentTooltip = hwndTT;
+
+            wchar_t text[32];
+            swprintf_s(text, L"%d", clickCount);
+
+            TOOLINFOW ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFOW);
+            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+            ti.hwnd = NULL;
+            ti.hinst = GetModuleHandle(NULL);
+            ti.lpszText = text;
+
+            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
+            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+            std::thread([this, hwndTT]() {
+                Sleep(1000);
+                if (IsWindow(hwndTT)) {
+                    SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
+                    DestroyWindow(hwndTT);
+                }
+                if (currentTooltip == hwndTT) {
+                    currentTooltip = NULL;
+                }
+            }).detach();
+        }
+    }
+    
 
 public:
+    bool stopClicking = false;
+
     AutoClicker() {
         InitMouseStructures();  // 初始化鼠标结构
     }
