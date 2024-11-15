@@ -127,6 +127,11 @@ bool AutoClicker::IsTargetGameWindow(HWND hwnd) {
             _wcslwr_s(fileName, wcslen(fileName) + 1);
             result = (wcscmp(fileName, L"gamemd-spawn.exe") == 0);
         }
+      
+    
+    
+      
+    
     }
 
     CloseHandle(hProcess);
@@ -134,39 +139,37 @@ bool AutoClicker::IsTargetGameWindow(HWND hwnd) {
 }
       
 void AutoClicker::PostClick(int x, int y, int count) {
-    HWND targetWindow = GetForegroundWindow();
-    if (!IsTargetGameWindow(targetWindow)) return;
+        HWND targetWindow = GetForegroundWindow();
+        if (!IsTargetGameWindow(targetWindow)) return;
 
-    DWORD targetThreadId = GetWindowThreadProcessId(targetWindow, NULL);
-    DWORD currentThreadId = GetCurrentThreadId();
+        DWORD targetThreadId = GetWindowThreadProcessId(targetWindow, NULL);
+        DWORD currentThreadId = GetCurrentThreadId();
+        AttachThreadInput(currentThreadId, targetThreadId, TRUE);
 
-    AttachThreadInput(currentThreadId, targetThreadId, TRUE);
+        POINT pt = { x, y };
+        ClientToScreen(targetWindow, &pt);
+        ConvertToAbsoluteCoordinates(pt.x, pt.y);
 
-    POINT pt = { x, y };
-    ClientToScreen(targetWindow, &pt);
-    ConvertToAbsoluteCoordinates(pt.x, pt.y);
+        mouseDown.input.mi.dx = pt.x;
+        mouseDown.input.mi.dy = pt.y;
+        mouseUp.input.mi.dx = pt.x;
+        mouseUp.input.mi.dy = pt.y;
 
-    mouseDown.input.mi.dx = pt.x;
-    mouseDown.input.mi.dy = pt.y;
-    mouseUp.input.mi.dx = pt.x;
-    mouseUp.input.mi.dy = pt.y;
+        for (int i = 0; i < count && !stopClicking; i++) {
+            if ((GetAsyncKeyState('E') & 0x8000) || (GetAsyncKeyState('R') & 0x8000)) {
+                stopClicking = true;
+                isClicking = false;
+                break;
+            }
 
-    for (int i = 0; i < count && !stopClicking; i++) {
-        if ((GetAsyncKeyState('E') & 0x8000) || (GetAsyncKeyState('R') & 0x8000)) {
-            stopClicking = true;
-            isClicking = false;
-            break;
+            SendInput(1, &mouseDown.input, sizeof(INPUT));
+            Sleep(clickInterval);  // 使用原来的间隔
+            SendInput(1, &mouseUp.input, sizeof(INPUT));
         }
 
-        SendInput(1, &mouseDown.input, sizeof(INPUT));
-        Sleep(clickInterval);  // 使用原来的间隔
-        SendInput(1, &mouseUp.input, sizeof(INPUT));
-        }
+        AttachThreadInput(currentThreadId, targetThreadId, FALSE);
+        isClicking = false;
     }
-
-    AttachThreadInput(currentThreadId, targetThreadId, FALSE);
-    isClicking = false;
-}
 
 bool AutoClicker::IsGameActive() {
     return IsTargetGameWindow(GetForegroundWindow());
@@ -279,63 +282,49 @@ void AutoClicker::ShowActivationMessage() {
 }
 
 void AutoClicker::ShowClickCountTooltip(int x, int y) {
-    ClearCurrentTooltip();
+        ClearCurrentTooltip();
 
-    HWND hwndTT = CreateWindowExW(
-        WS_EX_TOPMOST,
-        TOOLTIPS_CLASSW,
-        NULL,
-        WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        NULL, NULL,
-        GetModuleHandle(NULL),
-        NULL
-    );
-
-    if (hwndTT) {
-        currentTooltip = hwndTT;
-
-        HFONT hFont = CreateFontW(
-            16, 0, 0, 0,
-            FW_NORMAL,
-            FALSE, FALSE, FALSE,
-            GB2312_CHARSET,
-            OUT_DEFAULT_PRECIS,
-            CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY,
-            DEFAULT_PITCH | FF_DONTCARE,
-            L"微软雅黑"
+        HWND hwndTT = CreateWindowExW(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASSW,
+            NULL,
+            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            NULL, NULL,
+            GetModuleHandle(NULL),
+            NULL
         );
-        SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        wchar_t text[32];
-        swprintf_s(text, L"%d", clickCount);  // 只显示数字
+        if (hwndTT) {
+            currentTooltip = hwndTT;
 
-        TOOLINFOW ti = { 0 };
-        ti.cbSize = sizeof(TOOLINFOW);
-        ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
-        ti.hwnd = NULL;
-        ti.hinst = GetModuleHandle(NULL);
-        ti.lpszText = text;
+            wchar_t text[8];
+            swprintf_s(text, L"%d", clickCount);  // 只显示数字
 
-        SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
-        SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
-        SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+            TOOLINFOW ti = { 0 };
+            ti.cbSize = sizeof(TOOLINFOW);
+            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+            ti.hwnd = NULL;
+            ti.hinst = GetModuleHandle(NULL);
+            ti.lpszText = text;
 
-        std::thread([this, hwndTT, hFont]() {
-            Sleep(1000);
-            if (IsWindow(hwndTT)) {
-                SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
-                DestroyWindow(hwndTT);
-                DeleteObject(hFont);
-            }
-            if (currentTooltip == hwndTT) {
-                currentTooltip = NULL;
-            }
-        }).detach();
+            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(x, y - 20));
+            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+            std::thread([this, hwndTT]() {
+                Sleep(1000);
+                if (IsWindow(hwndTT)) {
+                    SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
+                    DestroyWindow(hwndTT);
+                }
+                if (currentTooltip == hwndTT) {
+                    currentTooltip = NULL;
+                }
+            }).detach();
+        }
     }
-}
 
 void AutoClicker::StopClicking() {
     stopClicking = true;
