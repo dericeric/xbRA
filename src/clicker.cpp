@@ -93,7 +93,7 @@ void ShowActivationMessage() {
     if (hwndTT) {
         currentTooltip = hwndTT;
 
-        // 修改字体设置
+        // 使用宋体（SimSun）作为最通用的中文字体
         HFONT hFont = CreateFontW(
             16,                     // 高度
             0,                      // 宽度
@@ -102,21 +102,27 @@ void ShowActivationMessage() {
             FALSE,                  // 斜体
             FALSE,                  // 下划线
             FALSE,                  // 删除线
-            GB2312_CHARSET,         // 使用中文字符集
+            CHINESEBIG5_CHARSET,    // 使用繁体中文字符集试试
             OUT_DEFAULT_PRECIS,
             CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY,      // 使用 ClearType 提高清晰度
-            DEFAULT_PITCH | FF_DONTCARE,
-            L"Microsoft YaHei"      // 使用微软雅黑
+            DEFAULT_QUALITY,        // 使用默认质量
+            FF_DONTCARE,           // 使用默认字体族
+            L"SimSun"              // 宋体
         );
-        SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        if (hFont) {
+            SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
+        }
+
+        // 确保源代码文件以 UTF-8 with BOM 保存
+        const wchar_t* message = L"[小白] 连点器已就绪！战斗模式启动！";
+        
         TOOLINFOW ti = { 0 };
         ti.cbSize = sizeof(TOOLINFOW);
         ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
         ti.hwnd = NULL;
         ti.hinst = GetModuleHandle(NULL);
-        ti.lpszText = L"[xb] 连点器已就绪！战斗模式启动！";  // 使用中文提示
+        ti.lpszText = (LPWSTR)message;
 
         int screenWidth = GetSystemMetrics(SM_CXSCREEN);
         int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -131,7 +137,9 @@ void ShowActivationMessage() {
             if (IsWindow(hwndTT)) {
                 SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
                 DestroyWindow(hwndTT);
-                DeleteObject(hFont);
+                if (hFont) {
+                    DeleteObject(hFont);
+                }
             }
             if (currentTooltip == hwndTT) {
                 currentTooltip = NULL;
