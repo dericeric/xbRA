@@ -29,8 +29,8 @@
 
 class AutoClicker {
 private:
-    int clickCount = 10;
-    int clickInterval = 5;
+    int clickCount = 9;
+    int clickInterval = 1;
     POINT clickPos;
     bool isClicking = false;
     std::thread clickThread;
@@ -167,7 +167,7 @@ private:
             currentTooltip = hwndTT;
 
             wchar_t text[32];
-            swprintf_s(text, L"%d", clickCount);
+            swprintf_s(text, L"%d", clickCount+1);
 
             TOOLINFOW ti = { 0 };
             ti.cbSize = sizeof(TOOLINFOW);
