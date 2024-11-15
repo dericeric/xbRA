@@ -75,78 +75,70 @@ private:
         }
     }
 
-    void ShowActivationMessage() {
-        ClearCurrentTooltip();
+void ShowActivationMessage() {
+    ClearCurrentTooltip();
 
-        // 创建 ToolTip 窗口
-        HWND hwndTT = CreateWindowExW(
-            WS_EX_TOPMOST,
-            TOOLTIPS_CLASSW,  // 使用 Unicode 版本
-            NULL,
-            WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            NULL, NULL,
-            GetModuleHandle(NULL),
-            NULL
+    HWND hwndTT = CreateWindowExW(
+        WS_EX_TOPMOST,
+        TOOLTIPS_CLASSW,
+        NULL,
+        WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        NULL, NULL,
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    if (hwndTT) {
+        currentTooltip = hwndTT;
+
+        // 修改字体设置
+        HFONT hFont = CreateFontW(
+            16,                     // 高度
+            0,                      // 宽度
+            0, 0,                   // 角度
+            FW_NORMAL,              // 粗细
+            FALSE,                  // 斜体
+            FALSE,                  // 下划线
+            FALSE,                  // 删除线
+            GB2312_CHARSET,         // 使用中文字符集
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY,      // 使用 ClearType 提高清晰度
+            DEFAULT_PITCH | FF_DONTCARE,
+            L"Microsoft YaHei"      // 使用微软雅黑
         );
+        SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        if (hwndTT) {
-            currentTooltip = hwndTT;
+        TOOLINFOW ti = { 0 };
+        ti.cbSize = sizeof(TOOLINFOW);
+        ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
+        ti.hwnd = NULL;
+        ti.hinst = GetModuleHandle(NULL);
+        ti.lpszText = L"[xb] 连点器已就绪！战斗模式启动！";  // 使用中文提示
 
-            // 设置 ToolTip 的字体为支持中文的字体
-            HFONT hFont = CreateFontW(
-                16,                     // 字体高度
-                0,                      // 字体宽度
-                0, 0,                   // 角度
-                FW_NORMAL,              // 字体粗细
-                FALSE,                  // 斜体
-                FALSE,                  // 下划线
-                FALSE,                  // 删除线
-                DEFAULT_CHARSET,        // 字符集
-                OUT_DEFAULT_PRECIS,
-                CLIP_DEFAULT_PRECIS,
-                DEFAULT_QUALITY,
-                DEFAULT_PITCH | FF_DONTCARE,
-                L"微软雅黑"             // 字体名称
-            );
-            SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-            TOOLINFOW ti = { 0 };
-            ti.cbSize = sizeof(TOOLINFOW);
-            ti.uFlags = TTF_ABSOLUTE | TTF_TRACK;
-            ti.hwnd = NULL;
-            ti.hinst = GetModuleHandle(NULL);
-      
-    
-    
-      
-    
-            ti.lpszText = L"[xb] Auto-Clicker Ready! Let's Fight! ";
+        SendMessageW(hwndTT, TTM_SETMAXTIPWIDTH, 0, 300);
+        SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+        SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
+        SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
 
-            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-            SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
-            SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG((screenWidth - 300) / 2, screenHeight - 100));
-            SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
-
-            // 设置最大宽度以支持多行文本
-            SendMessageW(hwndTT, TTM_SETMAXTIPWIDTH, 0, 300);
-
-            std::thread([this, hwndTT, hFont]() {
-                Sleep(1000);
-                if (IsWindow(hwndTT)) {
-                    SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
-                    DestroyWindow(hwndTT);
-                    DeleteObject(hFont);  // 清理字体资源
-                }
-                if (currentTooltip == hwndTT) {
-                    currentTooltip = NULL;
-                }
-            }).detach();
-        }
+        std::thread([this, hwndTT, hFont]() {
+            Sleep(1000);
+            if (IsWindow(hwndTT)) {
+                SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
+                DestroyWindow(hwndTT);
+                DeleteObject(hFont);
+            }
+            if (currentTooltip == hwndTT) {
+                currentTooltip = NULL;
+            }
+        }).detach();
     }
+}
 
     void ShowClickCountTooltip(int x, int y) {
         ClearCurrentTooltip();
