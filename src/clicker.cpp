@@ -84,7 +84,12 @@ void ShowActivationMessage() {
     ClearCurrentTooltip();
 
     // 首先定义原始的 UTF-8 字符串
-    const char* utf8Text = "[小白] 连点器已就绪！战斗模式启动！";
+    const char* utf8Text = "xb提示：V7连点器就绪！战斗模式开启！";
+      
+    
+    
+      
+    
     
     // 计算需要的宽字符缓冲区大小
     int wideSize = MultiByteToWideChar(CP_UTF8, 0, utf8Text, -1, NULL, 0);
@@ -100,8 +105,18 @@ void ShowActivationMessage() {
     }
 
     HWND hwndTT = CreateWindowExW(
-        WS_EX_TOPMOST,
+        WS_EX_TOPMOST | WS_EX_LAYERED,  // 添加 WS_EX_LAYERED 样式
+      
+    
+    
+      
+    
         TOOLTIPS_CLASSW,
+      
+    
+    
+      
+    
         NULL,
         WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
         CW_USEDEFAULT, CW_USEDEFAULT,
@@ -112,7 +127,18 @@ void ShowActivationMessage() {
     );
 
     if (hwndTT) {
+        // 设置窗口透明度
+        SetLayeredWindowAttributes(hwndTT, 0, 200, LWA_ALPHA);  // 200 是透明度值(0-255)
+        
+        // 设置文本颜色为暗绿色
+        SendMessage(hwndTT, TTM_SETTIPTEXTCOLOR, RGB(0, 100, 0), 0);
+
         currentTooltip = hwndTT;
+      
+    
+    
+      
+    
 
         HFONT hFont = CreateFontW(
             16,                     // 高度
