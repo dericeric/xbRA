@@ -41,7 +41,7 @@ void InitInjectedInput(InjectedInput& input, int x, int y, DWORD flags) {
 
 class AutoClicker {
 private:
-    int clickCount = 10;
+    int clickCount = 1;
     int clickInterval = 1;
     POINT clickPos;
     bool isClicking = false;
@@ -159,11 +159,11 @@ void AutoClicker::PostClick(int x, int y, int count) {
         }
 
         SendInput(1, &mouseDown.input, sizeof(INPUT));
-        Sleep(1);
+        Sleep(5);
         SendInput(1, &mouseUp.input, sizeof(INPUT));
 
         if (clickInterval > 0) {
-            Sleep(clickInterval);
+            Sleep(clickInterval*10);
         }
     }
 
@@ -351,14 +351,14 @@ bool AutoClicker::IsClicking() const {
 
 void AutoClicker::AdjustClickCount(bool increase, int mouseX, int mouseY) {
     if (increase) {
-        clickCount = (clickCount < 30) ? clickCount + 1 : 1;
+        clickCount = (clickCount < 10) ? clickCount + 1 : 1;
       
     
     
       
     
     } else {
-        clickCount = (clickCount > 1) ? clickCount - 1 : 30;
+        clickCount = (clickCount > 1) ? clickCount - 1 : 10;
     }
     ShowClickCountTooltip(mouseX, mouseY);
 }
