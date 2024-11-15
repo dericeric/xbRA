@@ -84,7 +84,7 @@ void ShowActivationMessage() {
     ClearCurrentTooltip();
 
     // 首先定义原始的 UTF-8 字符串
-    const char* utf8Text = "xb提示：V7连点器就绪！战斗模式开启！";
+    const char* utf8Text = "xb提示：V7连点器就绪！大战即将开始！";
       
     
     
@@ -177,7 +177,7 @@ void ShowActivationMessage() {
 
         // 注意：需要在线程中也使用 wideText
         std::thread([this, hwndTT, hFont, wideText]() {
-            Sleep(1000);
+            Sleep(3000);
             if (IsWindow(hwndTT)) {
                 SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, 0);
                 DestroyWindow(hwndTT);
