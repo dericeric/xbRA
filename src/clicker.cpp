@@ -57,7 +57,7 @@ private:
     // 私有方法声明
     bool IsTargetGameWindow(HWND hwnd);
     void InitMouseStructures();
-    void ConvertToAbsoluteCoordinates(LONG& x, LONG& y);
+    void ConvertToAbsoluteCoordinates(LONG& x, LONG& y);  // 修改这里，使用 LONG 类型
     void ClearCurrentTooltip();
     void ShowActivationMessage();
     void ShowClickCountTooltip(int x, int y);
@@ -67,18 +67,16 @@ public:
     AutoClicker();
     ~AutoClicker();
     
-    bool IsGameActive();
-    void CheckGameWindowStatus();
+    bool IsGameActive();  // 确保这个方法在公共部分声明
+    void CheckGameWindowStatus();  // 确保这个方法在公共部分声明
     void StartClicking(int x, int y);
     void StopClicking();
     bool IsClicking() const;
     void AdjustClickCount(bool increase, int mouseX, int mouseY);
-      
-    
-    
-      
-    
 };
+
+// 全局实例声明
+extern AutoClicker g_clicker;
 
 // 构造函数
 AutoClicker::AutoClicker() {
