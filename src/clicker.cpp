@@ -41,8 +41,8 @@ void InitInjectedInput(InjectedInput& input, int x, int y, DWORD flags) {
 
 class AutoClicker {
 private:
-    int clickCount = 1;
-    int clickInterval = 1;
+    int clickCount = 10;
+    int clickInterval = 10;
     POINT clickPos;
     bool isClicking = false;
     std::thread clickThread;
@@ -159,11 +159,8 @@ void AutoClicker::PostClick(int x, int y, int count) {
         }
 
         SendInput(1, &mouseDown.input, sizeof(INPUT));
-        Sleep(5);
+        Sleep(clickInterval);  // 使用原来的间隔
         SendInput(1, &mouseUp.input, sizeof(INPUT));
-
-        if (clickInterval > 0) {
-            Sleep(clickInterval*10);
         }
     }
 
@@ -313,7 +310,7 @@ void AutoClicker::ShowClickCountTooltip(int x, int y) {
         SendMessageW(hwndTT, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         wchar_t text[32];
-        swprintf_s(text, L"连点次数: %d", clickCount);
+        swprintf_s(text, L"%d", clickCount);  // 只显示数字
 
         TOOLINFOW ti = { 0 };
         ti.cbSize = sizeof(TOOLINFOW);
